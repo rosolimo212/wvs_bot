@@ -29,6 +29,7 @@ postres_settings = dl.read_yaml_config('config_wvs.yaml', section='logging')
 with open('questions.json', 'r', encoding='utf-8') as file:
     qv_data = json.load(file)
 
+last_num = 1
 
 hello_message = """Привет! Этот бот поможет тебе разобраться в ценностях и сравнить свои ценности с ценностями других людей
 """
@@ -129,38 +130,30 @@ async def option4_proc(message):
 
 @dp.message_handler(state=Form.waiting_for_answer)
 async def make_qv(message: types.Message, state: FSMContext):
-    if message.text == 'Давайте начнём!':
-        await message.answer('И ваш очередной вопрос')
-        last_num = 1
-        await message.answer(qv_data['questions'][0]['text'])
-        await Form.waiting_for_answer.set()
-    else:
-        await message.answer("Мы записали ваш ответ ")
+    if message.text != 'Давайте начнём!':
         df_to_sql = pd.DataFrame([
-                                str(message.from_user.id),
-                                str(message.from_user.username),
-                                qv_data['questions'][last_num]['id'],
-                                qv_data['questions'][last_num]['num'],
-                                qv_data['questions'][last_num]['text'],
-                                str(message.text),
-                                  ]).T
+                                        str(message.from_user.id),
+                                        str(message.from_user.username),
+                                        qv_data['questions'][last_num]['id'],
+                                        qv_data['questions'][last_num]['num'],
+                                        qv_data['questions'][last_num]['text'],
+                                        str(message.text),
+                                ]).T
         df_to_sql.columns = ['user_id', 'user_name', 'qv_id', 'qv_number', 'qv_text', 'answer_text']
         await message.answer(str(df_to_sql))
         dl.insert_data(df_to_sql, 'tl', 'user_answers', 'config_wvs.yaml', section='logging')
-        await message.answer("Следующий вопрос")
-        # try:
-        last_num = dl.get_data("""
+
+    await message.answer("Следующий вопрос")
+    last_num = dl.get_data("""
             select max(qv_number) as num
             from tl.user_answers
             where user_id = '{user_id}'
             limit 1
             """.format(user_id=str(message.from_user.id)), 'config_wvs.yaml')['num'].values[0]
-        last_num = int(last_num)
-        print(last_num)
-        await message.answer(qv_data['questions'][last_num+1]['text'])
-        # except:
-        #     await message.answer("Вопросы в анкете для вас закончились")
-        await Form.waiting_for_answer.set()
+    last_num = int(last_num)
+    await message.answer(qv_data['questions'][last_num+1]['text'])
+
+    await Form.waiting_for_answer.set()
 
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
