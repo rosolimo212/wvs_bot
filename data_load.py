@@ -2,7 +2,10 @@
 import numpy as np
 import pandas as pd
 
-import yaml
+import yaml, json
+import requests
+import psycopg2 as ps
+from sqlalchemy import create_engine
 
 import os
 current_dir = os.path.abspath(os.getcwd())
@@ -27,7 +30,14 @@ def get_data(query: str, file, section='logging') -> list:
     settings = read_yaml_config(file, section)
     conn = None
     try:
-        conn = ps.connect(**settings)
+        conn = ps.connect(
+                            host=settings['host'],
+                            user=settings['user'],
+                            password=settings['password'],
+                            database=settings['database'],
+                            port=settings['port'],
+                            sslmode='require'
+                        )
         cur = conn.cursor()
         cur.execute(query)
         try:
@@ -55,11 +65,11 @@ def get_engine(file, section='logging'):
 
     return postgresql_engine
 
-def insert_data(df_to_sql, schema, table_name):
+def insert_data(df_to_sql, schema, table_name, file, section='logging'):
     import datetime
     now = datetime.datetime.now()
 
-    main_engine=get_engine('config.yaml')
+    main_engine = get_engine(file, section)
 
     df_to_sql['insert_time'] = now
     df_to_sql.to_sql(
