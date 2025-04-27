@@ -155,7 +155,7 @@ async def get_next_question(user_id):
         last_answered_question_num = int(last_answered_question_df['num'].values[0])
     except Exception as e:
         print(str(e))
-        last_answered_question_num = 0
+        last_answered_question_num = -1
    
     print('answered_questions', last_answered_question_num)
     return last_answered_question_num
@@ -170,8 +170,8 @@ async def make_qv(message: types.Message, state: FSMContext):
     last_question = qv_data['questions'][last_answered_question_num]
     current_question = qv_data['questions'][last_answered_question_num+1]
 
-    print('last_answered_question_num', last_answered_question_num)
-    await message.answer('Самый свежий вопрос в базе ' + str(last_answered_question_num))
+    # print('last_answered_question_num', last_answered_question_num)
+    # await message.answer('Самый свежий вопрос в базе ' + str(last_answered_question_num))
 
     df_to_sql = pd.DataFrame([
                                 str(message.from_user.id),
@@ -182,12 +182,16 @@ async def make_qv(message: types.Message, state: FSMContext):
                                 last_answer,
                                 ]).T
     df_to_sql.columns = ['user_id', 'user_name', 'qv_id', 'qv_number', 'qv_text', 'answer_text']
-    if last_answer != 'Давайте!':
-        dl.insert_data(df_to_sql, 'tl', 'user_answers', 'config_wvs.yaml', section='logging')
+    # if last_answer != 'Давайте!':
+    dl.insert_data(df_to_sql, 'tl', 'user_answers', 'config_wvs.yaml', section='logging')
+    await message.answer('Есть запись')
     
     await message.answer('В БД пойдёт такое: \n' + str(df_to_sql))
 
-    await message.answer(current_question['text'], reply_markup=types.ReplyKeyboardRemove())
+    try:
+        await message.answer(current_question['text'], reply_markup=types.ReplyKeyboardRemove())
+    except:
+        await message.answer("Вопросы закончились! Всё хорошо", reply_markup=ok_markup)
  
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
