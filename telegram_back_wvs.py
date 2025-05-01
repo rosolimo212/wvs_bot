@@ -152,10 +152,11 @@ async def get_next_question(user_id):
                             """.format(
                                         user_id=user_id
                                         ), 'config_wvs.yaml')
+        print(last_answered_question_df)
         last_answered_question_num = int(last_answered_question_df['num'].values[0])
     except Exception as e:
-        print(str(e))
-        last_answered_question_num = -1
+        print(str(e));
+        last_answered_question_num = 0
    
     print('answered_questions', last_answered_question_num)
     return last_answered_question_num
@@ -168,7 +169,6 @@ async def make_qv(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     last_answered_question_num = await get_next_question(user_id)
     last_question = qv_data['questions'][last_answered_question_num]
-    current_question = qv_data['questions'][last_answered_question_num+1]
 
     # print('last_answered_question_num', last_answered_question_num)
     # await message.answer('Самый свежий вопрос в базе ' + str(last_answered_question_num))
@@ -176,9 +176,9 @@ async def make_qv(message: types.Message, state: FSMContext):
     df_to_sql = pd.DataFrame([
                                 str(message.from_user.id),
                                 str(message.from_user.username),
-                                current_question['id'],
-                                current_question['num'],
-                                current_question['text'],
+                                last_question['id'],
+                                last_question['num'],
+                                last_question['text'],
                                 last_answer,
                                 ]).T
     df_to_sql.columns = ['user_id', 'user_name', 'qv_id', 'qv_number', 'qv_text', 'answer_text']
@@ -189,6 +189,8 @@ async def make_qv(message: types.Message, state: FSMContext):
     await message.answer('В БД пойдёт такое: \n' + str(df_to_sql))
 
     try:
+        current_question = qv_data['questions'][last_answered_question_num+1]
+        print(current_question)
         await message.answer(current_question['text'], reply_markup=types.ReplyKeyboardRemove())
     except:
         await message.answer("Вопросы закончились! Всё хорошо", reply_markup=ok_markup)
