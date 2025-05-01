@@ -114,23 +114,27 @@ async def back_to_main_menu(message: types.Message, state: FSMContext):
     await show_main_menu(message)
 
 async def option1_proc(message):
+    print("Это мы зашли в option1_proc")
     user_id = message.from_user.id
     user_name = message.from_user.username
-    num_questions_ready = await get_next_question(str(user_id))
-    num_questions_rest = len(qv_data['questions']) - num_questions_ready
-    # await message.answer(str(num_questions_ready))
-    # await message.answer(str(num_questions_rest))
+    await Form.waiting_for_answer.set()
 
+    num_questions_ready = await get_next_question(str(user_id))
+    print("В option1_proc прочитали номер последнего вопроса", str(num_questions_ready))
+    num_questions_rest = len(qv_data['questions']) - num_questions_ready
     time = np.floor(num_questions_rest * 0.75)
+
     await message.answer(
                             user_data_message.format(
                                                     user_name=user_name,
                                                     num = num_questions_rest,
                                                     time = time,
-                                                    ), 
-                            reply_markup=start_markup
+                                                    ),
+                            reply_markup=ok_markup
                         )
-    await Form.waiting_for_answer.set()
+    await message.answer(qv_data['questions'][num_questions_ready]['text'])
+    print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
+    
 
 async def option2_proc(message):
     await message.answer("Эта функция появится позже", reply_markup=ok_markup)
@@ -143,6 +147,7 @@ async def option4_proc(message):
 
 
 async def get_next_question(user_id):
+    print("Зашли в get_next_question")
     try:
         last_answered_question_df = dl.get_data("""
                             select max(qv_number) as num
@@ -152,26 +157,27 @@ async def get_next_question(user_id):
                             """.format(
                                         user_id=user_id
                                         ), 'config_wvs.yaml')
-        print(last_answered_question_df)
+        last_answered_question_df['num'] = last_answered_question_df['num'].fillna(0)
+        print("В get_next_question датафрейм целиком", last_answered_question_df)
         last_answered_question_num = int(last_answered_question_df['num'].values[0])
+        print("В get_next_question целевое число", last_answered_question_num)
     except Exception as e:
-        print(str(e));
+        print("В get_next_question началось исключение")
+        print(str(e))
         last_answered_question_num = 0
    
-    print('answered_questions', last_answered_question_num)
     return last_answered_question_num
 
-@dp.message_handler(lambda message: message.text.lower() != 'Давайте!', state=Form.waiting_for_answer)
+@dp.message_handler(lambda message: message.text.lower() != 'вернуться позже', state=Form.waiting_for_answer)
 async def make_qv(message: types.Message, state: FSMContext):
+    print("Это мы зашли в make_qv")
     last_answer = str(message.text)
-    await message.answer(last_answer)
-
+    print("В make_qv прошлый ответ", str(last_answer))
     user_id = message.from_user.id
-    last_answered_question_num = await get_next_question(user_id)
-    last_question = qv_data['questions'][last_answered_question_num]
 
-    # print('last_answered_question_num', last_answered_question_num)
-    # await message.answer('Самый свежий вопрос в базе ' + str(last_answered_question_num))
+    last_question_index = await get_next_question(user_id)
+    print("В make_qv номер последнего вопроса", str(last_question_index))
+    last_question = qv_data['questions'][last_question_index]
 
     df_to_sql = pd.DataFrame([
                                 str(message.from_user.id),
@@ -182,18 +188,17 @@ async def make_qv(message: types.Message, state: FSMContext):
                                 last_answer,
                                 ]).T
     df_to_sql.columns = ['user_id', 'user_name', 'qv_id', 'qv_number', 'qv_text', 'answer_text']
-    # if last_answer != 'Давайте!':
     dl.insert_data(df_to_sql, 'tl', 'user_answers', 'config_wvs.yaml', section='logging')
-    await message.answer('Есть запись')
-    
-    await message.answer('В БД пойдёт такое: \n' + str(df_to_sql))
 
     try:
-        current_question = qv_data['questions'][last_answered_question_num+1]
-        print(current_question)
+        next_question_index = await get_next_question(user_id)
+        print("В make_qv номер следующего вопроса", str(next_question_index))
+        current_question = qv_data['questions'][next_question_index]
         await message.answer(current_question['text'], reply_markup=types.ReplyKeyboardRemove())
+        print("Задан вопрос ", current_question['text'])
     except:
         await message.answer("Вопросы закончились! Всё хорошо", reply_markup=ok_markup)
+        await state.finish()
  
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
