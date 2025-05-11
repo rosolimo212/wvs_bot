@@ -64,6 +64,9 @@ ok_markup = make_answer_buttons([
 start_markup = make_answer_buttons([
     'Давайте!',
                         ])
+exit_markup = make_answer_buttons([
+    'Вернуться позже',
+                        ])
 
 # Определяем состояния
 class Form(StatesGroup):
@@ -94,6 +97,7 @@ async def show_main_menu(message: types.Message, state: FSMContext):
 
     await Form.waiting_for_option.set()  # Устанавливаем состояние ожидания опции
 
+
 @dp.message_handler(state=Form.waiting_for_option)
 async def process_option(message: types.Message, state: FSMContext):
     if message.text.lower() == option1_message.lower():
@@ -109,9 +113,11 @@ async def process_option(message: types.Message, state: FSMContext):
     else:
         await message.answer(error_message, reply_markup=ok_markup)
 
+
 @dp.message_handler(lambda message: message.text.lower() == "Ok", state=Form.waiting_for_option)
 async def back_to_main_menu(message: types.Message, state: FSMContext):
     await show_main_menu(message)
+
 
 async def option1_proc(message):
     print("Это мы зашли в option1_proc")
@@ -123,24 +129,30 @@ async def option1_proc(message):
     print("В option1_proc прочитали номер последнего вопроса", str(num_questions_ready))
     num_questions_rest = len(qv_data['questions']) - num_questions_ready
     time = np.floor(num_questions_rest * 0.75)
+    print('num_questions_rest', num_questions_rest)
+    if num_questions_rest > 0:
+        await message.answer(
+                                user_data_message.format(
+                                                        user_name=user_name,
+                                                        num = num_questions_rest,
+                                                        time = time,
+                                                        ),
+                                reply_markup=ok_markup
+                            )
+        await message.answer(qv_data['questions'][num_questions_ready]['text'])
+        print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
+    else:
+        await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
+        await Form.waiting_for_option.set()
 
-    await message.answer(
-                            user_data_message.format(
-                                                    user_name=user_name,
-                                                    num = num_questions_rest,
-                                                    time = time,
-                                                    ),
-                            reply_markup=ok_markup
-                        )
-    await message.answer(qv_data['questions'][num_questions_ready]['text'])
-    print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
-    
 
 async def option2_proc(message):
     await message.answer("Эта функция появится позже", reply_markup=ok_markup)
 
+
 async def option3_proc(message):
     await message.answer("Эта функция появится позже", reply_markup=ok_markup)
+
 
 async def option4_proc(message):
     await message.answer("Эта функция появится позже", reply_markup=ok_markup)
@@ -167,6 +179,7 @@ async def get_next_question(user_id):
         last_answered_question_num = 0
    
     return last_answered_question_num
+
 
 @dp.message_handler(lambda message: message.text.lower() != 'вернуться позже', state=Form.waiting_for_answer)
 async def make_qv(message: types.Message, state: FSMContext):
@@ -197,8 +210,9 @@ async def make_qv(message: types.Message, state: FSMContext):
         await message.answer(current_question['text'], reply_markup=types.ReplyKeyboardRemove())
         print("Задан вопрос ", current_question['text'])
     except:
-        await message.answer("Вопросы закончились! Всё хорошо", reply_markup=ok_markup)
+        await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
         await state.finish()
+        await Form.waiting_for_option.set()
  
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
