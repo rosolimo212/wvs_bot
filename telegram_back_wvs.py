@@ -143,9 +143,10 @@ async def option1_proc(message):
         variants_to_dialog = []
         for v in variants_from_qv:
             variants_to_dialog.append(v)
-        variants_to_dialog.append(['Вернуться позже'])
+        variants_to_dialog.append('Вернуться позже')
         print('len', len(variants_to_dialog))
         qv_markup = make_answer_buttons(variants_to_dialog)
+        print(variants_to_dialog)
         await message.answer(qv_data['questions'][num_questions_ready]['text'], reply_markup=qv_markup)
         print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
     else:
@@ -203,7 +204,7 @@ async def make_qv(message: types.Message, state: FSMContext):
                                 str(message.from_user.id),
                                 str(message.from_user.username),
                                 last_question['id'],
-                                last_question['num'],
+                                int(last_question['num']),
                                 last_question['text'],
                                 last_answer,
                                 ]).T
@@ -219,7 +220,7 @@ async def make_qv(message: types.Message, state: FSMContext):
         variants_to_dialog = []
         for v in variants_from_qv:
             variants_to_dialog.append(v)
-        variants_to_dialog.append(['Вернуться позже'])
+        variants_to_dialog.append('Вернуться позже')
         print('len', len(variants_to_dialog))
         qv_markup = make_answer_buttons(variants_to_dialog)
         await message.answer(current_question['text'], reply_markup=qv_markup)
