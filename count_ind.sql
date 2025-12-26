@@ -13,6 +13,7 @@ base as
                         FROM $$^[+-]?[0-9]+$$
                         ) as answer_num
     FROM tl.user_answers
+    where user_id = {user_id}
 ),
 prep_val as
 (

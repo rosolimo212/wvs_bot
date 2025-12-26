@@ -119,6 +119,25 @@ async def back_to_main_menu(message: types.Message, state: FSMContext):
     await show_main_menu(message)
 
 
+async def show_results(user_id):
+    with open('count_ind.sql', 'r') as f:
+        query= f.read()
+    query = query.format(user_id=user_id)
+    results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
+    rv = results_df['rv'].values[0]
+    sv = results_df['sv'].values[0]
+    country_code = results_df['country_code'].values[0]
+    country_rv = results_df['country_rv'].values[0]
+    country_sv = results_df['country_sv'].values[0]
+
+    results_str = f"""
+    Ваш индекс традиционных\секулярных ценностей: {rv}\n
+    Ваш индекс ценностей выживания\самовыражения: {sv}\n
+    Страна, жители кооторой ближе всего к вам - это {country_code}(RV {country_rv}, SV {country_sv})
+    """
+    return results_str
+
+
 async def option1_proc(message):
     print("Это мы зашли в option1_proc")
     user_id = message.from_user.id
@@ -151,6 +170,8 @@ async def option1_proc(message):
         print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
     else:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
+        results_str = await show_results(user_id)
+        await message.answer(results_str, reply_markup=ok_markup)
         await Form.waiting_for_option.set()
 
 
@@ -227,6 +248,8 @@ async def make_qv(message: types.Message, state: FSMContext):
         print("Задан вопрос ", current_question['text'])
     except:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
+        results_str = await show_results(user_id)
+        await message.answer(results_str, reply_markup=ok_markup)
         await state.finish()
         await Form.waiting_for_option.set()
 
