@@ -112,7 +112,7 @@ stat_dist as
         row_number() over (
                             partition by us.user_id 
                             order by 
-                                abs(us.rv - cs.country_rv) +
+                                abs(us.rv - cs.country_rv)*abs(us.rv - cs.country_rv) + abs(us.sv - cs.country_sv)*abs(us.sv - cs.country_sv)
                                 abs(us.sv - cs.country_sv)
                             ) as country_rank
     from user_stat us
