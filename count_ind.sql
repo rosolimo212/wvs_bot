@@ -124,4 +124,5 @@ select user_id, user_name, rv, sv, country_code, country_rv, country_sv
 from stat_dist
 where country_rank = 1
 
+
 limit 1
