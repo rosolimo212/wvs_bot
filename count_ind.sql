@@ -10,10 +10,10 @@ base as
             -- но они могут быть отрицательные
             substring(
                         ltrim(left(answer_text, 10)) 
-                        FROM $$^[+-]?[0-9]+$$
+                        FROM $$^[+-]?[0-results_str9]+$$
                         ) as answer_num
     FROM tl.user_answers
-    where user_id = {user_id}
+    where user_id = '{user_id}'
 ),
 prep_val as
 (
@@ -114,7 +114,6 @@ stat_dist as
                             partition by us.user_id 
                             order by 
                                 abs(us.rv - cs.country_rv)*abs(us.rv - cs.country_rv) + abs(us.sv - cs.country_sv)*abs(us.sv - cs.country_sv)
-                                abs(us.sv - cs.country_sv)
                             ) as country_rank
     from user_stat us
     left outer join country_stats cs on
