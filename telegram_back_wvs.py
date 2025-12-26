@@ -131,9 +131,10 @@ async def show_results(user_id):
     country_sv = results_df['country_sv'].values[0]
 
     results_str = f"""
-    Ваш индекс традиционных\секулярных ценностей: {rv}\n
-    Ваш индекс ценностей выживания\самовыражения: {sv}\n
-    Страна, жители кооторой ближе всего к вам - это {country_code}(RV {country_rv}, SV {country_sv})
+    Ваш индекс традиционных\секулярных ценностей: {rv}
+    Ваш индекс ценностей выживания\самовыражения: {sv}
+    Страна, жители кооторой ближе всего к вам - это 
+    {country_code} (RV {country_rv}, SV {country_sv})
     """
     return results_str
 
