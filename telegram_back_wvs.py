@@ -155,13 +155,9 @@ async def show_index(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    if len(results_df) > 0:
-        rv = results_df['rv'].values[0]
-        sv = results_df['sv'].values[0]
-    else:
-        rv = 0
-        sv = 0
-    
+    rv = results_df['rv'].values[0]
+    sv = results_df['sv'].values[0]
+
     return index_str.format(
                 rv=rv, 
                 sv=sv
@@ -172,18 +168,12 @@ async def show_nearest_country(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    # if len(results_df) > 0:
+
     rv = results_df['rv'].values[0]
     sv = results_df['sv'].values[0]
     country_code = results_df['country_code'].values[0]
     country_rv = results_df['country_rv'].values[0]
     country_sv = results_df['country_sv'].values[0]
-    # else:
-    #     rv = 0
-    #     sv = 0
-    #     country_code = ''
-    #     country_rv = 0
-    #     country_sv = 0
 
     return nearest_country_str.format(
                 rv=rv, 
@@ -198,16 +188,12 @@ async def show_position(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    if len(results_df) > 0:
-        rv = results_df['rv'].values[0]
-        sv = results_df['sv'].values[0]
-        rv_rank = int(np.round(results_df['rv_rank'].values[0], 2) * 100)
-        sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
-    else:
-        rv = 0
-        sv = 0
-        rv_rank = 0
-        sv_rank = 0
+
+    rv = results_df['rv'].values[0]
+    sv = results_df['sv'].values[0]
+    rv_rank = int(np.round(results_df['rv_rank'].values[0], 2) * 100)
+    sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
+
 
     return position_str.format(
                 rv=rv, 
@@ -248,7 +234,7 @@ async def option1_proc(message):
         print(variants_to_dialog)
         await message.answer(qv_data['questions'][num_questions_ready]['text'], reply_markup=qv_markup)
         print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
-        make_log_event(user_id, event_type='question_asked', parameters=[{'question_num': qv_data['questions'][num_questions_ready]['num']}])
+        
     else:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
         make_log_event(user_id, event_type='questions_finished', parameters=[])
