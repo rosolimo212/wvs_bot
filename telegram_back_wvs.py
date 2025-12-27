@@ -49,6 +49,13 @@ finish_message = """'ОК' возвращает вас в главное мен�
 error_message = """Что-то пошло не так. Возможно, ошибка на нашей стороне. А возможно, вы ввели что-то неожиданное
 Попробуйте начать сначала, выбрав команду /start
 """
+results_str = """
+Ваш индекс традиционных\секулярных ценностей: {rv}
+Ваш индекс ценностей выживания\самовыражения: {sv}
+Страна, жители кооторой ближе всего к вам - это 
+{country_code} (RV {country_rv}, SV {country_sv})
+"""
+
 # about buttons
 def make_answer_buttons(buttons_lst):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -130,13 +137,13 @@ async def show_results(user_id):
     country_rv = results_df['country_rv'].values[0]
     country_sv = results_df['country_sv'].values[0]
 
-    results_str = f"""
-    Ваш индекс традиционных\секулярных ценностей: {rv}
-    Ваш индекс ценностей выживания\самовыражения: {sv}
-    Страна, жители кооторой ближе всего к вам - это 
-    {country_code} (RV {country_rv}, SV {country_sv})
-    """
-    return results_str
+    return results_str.format(
+                rv=rv, 
+                sv=sv, 
+                country_code=country_code, 
+                country_rv=country_rv, 
+                country_sv=country_sv
+                )
 
 
 async def option1_proc(message):
