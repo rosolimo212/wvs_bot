@@ -55,6 +55,12 @@ results_str = """
 Страна, жители кооторой ближе всего к вам - это 
 {country_code} (RV {country_rv}, SV {country_sv})
 """
+country_pos_str = """
+Ваш индекс традиционных\секулярных ценностей: {rv}
+Это больше, чем у {rv_rank}% участников опросов из России
+Ваш индекс ценностей выживания\самовыражения: {sv}
+Это больше, чем у {sv_rank}% участников опросов из России по ценностям выживания\самовыражения
+"""
 
 # about buttons
 def make_answer_buttons(buttons_lst):
@@ -145,6 +151,22 @@ async def show_results(user_id):
                 country_sv=country_sv
                 )
 
+async def show_country_pos(user_id):
+    with open('count_pos.sql', 'r') as f:
+        query= f.read()
+    query = query.format(user_id=user_id)
+    results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
+    rv = results_df['rv'].values[0]
+    sv = results_df['sv'].values[0]
+    rv_rank = np.round(results_df['rv_rank'].values[0] * 100, 2) * 100
+    sv_rank = np.round(results_df['sv_rank'].values[0] * 100, 2) * 100
+    return country_pos_str.format(
+                rv=rv, 
+                sv=sv, 
+                rv_rank=rv_rank, 
+                sv_rank=sv_rank
+                )
+
 
 async def option1_proc(message):
     print("Это мы зашли в option1_proc")
@@ -195,8 +217,11 @@ async def option3_proc(message):
 
 
 async def option4_proc(message):
-    await message.answer("Эта функция появится позже", reply_markup=ok_markup)
-
+    # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
+    user_name = message.from_user.username
+    user_id = message.from_user.id
+    country_pos_str = await show_country_pos(user_id)
+    await message.answer(country_pos_str, reply_markup=ok_markup)
 
 async def get_next_question(user_id):
     print("Зашли в get_next_question")
