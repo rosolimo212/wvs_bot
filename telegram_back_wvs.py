@@ -158,8 +158,8 @@ async def show_country_pos(user_id):
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
     rv = results_df['rv'].values[0]
     sv = results_df['sv'].values[0]
-    rv_rank = np.round(results_df['rv_rank'].values[0] * 100, 2) * 100
-    sv_rank = np.round(results_df['sv_rank'].values[0] * 100, 2) * 100
+    rv_rank = int(np.round(results_df['rv_rank'].values[0], 2) * 100)
+    sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
     return country_pos_str.format(
                 rv=rv, 
                 sv=sv, 
