@@ -152,8 +152,13 @@ async def show_index(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    rv = results_df['rv'].values[0]
-    sv = results_df['sv'].values[0]
+    if len(results_df) > 0:
+        rv = results_df['rv'].values[0]
+        sv = results_df['sv'].values[0]
+    else:
+        rv = 0
+        sv = 0
+    
     return index_str.format(
                 rv=rv, 
                 sv=sv
@@ -164,11 +169,18 @@ async def show_nearest_country(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    rv = results_df['rv'].values[0]
-    sv = results_df['sv'].values[0]
-    country_code = results_df['country_code'].values[0]
-    country_rv = results_df['country_rv'].values[0]
-    country_sv = results_df['country_sv'].values[0]
+    if len(results_df) > 0:
+        rv = results_df['rv'].values[0]
+        sv = results_df['sv'].values[0]
+        country_code = results_df['country_code'].values[0]
+        country_rv = results_df['country_rv'].values[0]
+        country_sv = results_df['country_sv'].values[0]
+    else:
+        rv = 0
+        sv = 0
+        country_code = ''
+        country_rv = 0
+        country_sv = 0
 
     return nearest_country_str.format(
                 rv=rv, 
@@ -183,10 +195,17 @@ async def show_position(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    rv = results_df['rv'].values[0]
-    sv = results_df['sv'].values[0]
-    rv_rank = int(np.round(results_df['rv_rank'].values[0], 2) * 100)
-    sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
+    if len(results_df) > 0:
+        rv = results_df['rv'].values[0]
+        sv = results_df['sv'].values[0]
+        rv_rank = int(np.round(results_df['rv_rank'].values[0], 2) * 100)
+        sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
+    else:
+        rv = 0
+        sv = 0
+        rv_rank = 0
+        sv_rank = 0
+
     return position_str.format(
                 rv=rv, 
                 sv=sv, 
@@ -245,18 +264,26 @@ async def option2_proc(message):
 async def option3_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
-    nearest_country_str = await show_nearest_country(user_id)
-    make_log_event(user_id, event_type='find_country', parameters=[{'answer': nearest_country_str}])
-    await message.answer(nearest_country_str, reply_markup=ok_markup)
+    try:
+        nearest_country_str = await show_nearest_country(user_id)
+        make_log_event(user_id, event_type='find_country', parameters=[{'answer': nearest_country_str}])
+        await message.answer(nearest_country_str, reply_markup=ok_markup)
+    except Exception as e:
+        await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
+        make_log_event(user_id, event_type='find_country', parameters=[{'answer': 'No data'}])
 
 
 async def option4_proc(message):
     # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
     user_name = message.from_user.username
     user_id = message.from_user.id
-    user_position_str = await show_position(user_id)
-    make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_position_str}])
-    await message.answer(user_position_str, reply_markup=ok_markup)
+    try:
+        user_position_str = await show_position(user_id)
+        make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_position_str}])
+        await message.answer(user_position_str, reply_markup=ok_markup)
+    except Exception as e:
+        await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
+        make_log_event(user_id, event_type='find_position', parameters=[{'answer': 'No data'}])
 
 async def get_next_question(user_id):
     print("Зашли в get_next_question")
