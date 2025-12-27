@@ -184,7 +184,12 @@ async def option1_proc(message):
 
 
 async def option2_proc(message):
-    await message.answer("Эта функция появится позже", reply_markup=ok_markup)
+    # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
+    user_name = message.from_user.username
+    user_id = message.from_user.id
+    await Form.waiting_for_answer.set()
+    results_str = await show_results(user_id)
+    await message.answer(results_str, reply_markup=ok_markup)
 
 
 async def option3_proc(message):
