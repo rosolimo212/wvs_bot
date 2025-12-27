@@ -102,10 +102,11 @@ dp = Dispatcher(bot, storage=storage)
 def make_log_event(
                 user_id,
                 event_type='',
-                parameters=[]
+                parameters={}
                 ):
     log_str = [user_id,event_type,parameters]
     logging_df = pd.DataFrame([log_str], columns=['user_id', 'event_type', 'parameters'])
+    logging_df['parameters'] = logging_df['parameters'].astype(str)
     dl.insert_data(logging_df, 'tl', 'wvs_events', 'config_wvs.yaml', section='logging')
 
 
