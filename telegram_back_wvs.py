@@ -113,6 +113,9 @@ def make_log_event(
 @dp.message_handler(commands='start', state='*')
 async def show_main_menu(message: types.Message, state: FSMContext):
     await Form.waiting_for_option.set()
+    user_id = message.from_user.id
+    user_name = message.from_user.username
+    make_log_event(user_id, event_type='main_menu', parameters=[])
 
     markup = make_answer_buttons([
                                     option1_message, 
@@ -169,18 +172,18 @@ async def show_nearest_country(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
-    if len(results_df) > 0:
-        rv = results_df['rv'].values[0]
-        sv = results_df['sv'].values[0]
-        country_code = results_df['country_code'].values[0]
-        country_rv = results_df['country_rv'].values[0]
-        country_sv = results_df['country_sv'].values[0]
-    else:
-        rv = 0
-        sv = 0
-        country_code = ''
-        country_rv = 0
-        country_sv = 0
+    # if len(results_df) > 0:
+    rv = results_df['rv'].values[0]
+    sv = results_df['sv'].values[0]
+    country_code = results_df['country_code'].values[0]
+    country_rv = results_df['country_rv'].values[0]
+    country_sv = results_df['country_sv'].values[0]
+    # else:
+    #     rv = 0
+    #     sv = 0
+    #     country_code = ''
+    #     country_rv = 0
+    #     country_sv = 0
 
     return nearest_country_str.format(
                 rv=rv, 
@@ -287,7 +290,6 @@ async def option4_proc(message):
 
 async def get_next_question(user_id):
     print("Зашли в get_next_question")
-    make_log_event(user_id, event_type='find_country', parameters=[])
     try:
         last_answered_question_df = dl.get_data("""
                             select max(qv_number) as num
@@ -330,6 +332,7 @@ async def make_qv(message: types.Message, state: FSMContext):
                                 ]).T
     df_to_sql.columns = ['user_id', 'user_name', 'qv_id', 'qv_number', 'qv_text', 'answer_text']
     dl.insert_data(df_to_sql, 'tl', 'user_answers', 'config_wvs.yaml', section='logging')
+    make_log_event(user_id, event_type='record_answer', parameters=[{'qv_number': int(last_question['num'])}])
 
     try:
         next_question_index = await get_next_question(user_id)
@@ -347,8 +350,9 @@ async def make_qv(message: types.Message, state: FSMContext):
         print("Задан вопрос ", current_question['text'])
     except:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
-        results_str = await show_results(user_id)
+        results_str = await show_index(user_id)
         await message.answer(results_str, reply_markup=ok_markup)
+        make_log_event(user_id, event_type='questions_finished', parameters=[])
         await state.finish()
         await Form.waiting_for_option.set()
 
