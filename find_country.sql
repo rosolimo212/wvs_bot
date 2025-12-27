@@ -77,10 +77,52 @@ user_stat as
     where 
             rv.val_type = 'rv' 
         and sv.val_type = 'sv'
+),
+country_raw as
+(
+    select 
+        "D_INTERVIEW", "B_COUNTRY_ALPHA" as country_code,
+        "Q173" + "Q45" + "Q69" + "Q6" + "Q27" + "Q70" + "Q65" as rv,
+        "Q17" + "Q8" + "Q11" + "Q30" + "Q29" + "Q33" + "Q152" as sv,
+        1 as j
+    from tl.gen_sample
+),
+country_stats as
+(
+    select 
+        country_code,
+        round(avg(rv), 2) as country_rv,
+        round(avg(sv), 2) as country_sv,
+        1 as j
+    from country_raw
+    group by 1
+),
+stat_dist as
+(
+    select 
+        us.user_id,
+        us.user_name,
+        us.rv,
+        us.sv,
+        cs.country_code,
+        cs.country_rv,
+        cs.country_sv,
+        abs(us.rv - cs.country_rv) as rv_diff,
+        abs(us.sv - cs.country_sv) as sv_diff,
+        abs(us.rv - cs.country_rv) + abs(us.sv - cs.country_sv) as diff_sum,
+        row_number() over (
+                            partition by us.user_id 
+                            order by 
+                                abs(us.rv - cs.country_rv)*abs(us.rv - cs.country_rv) + abs(us.sv - cs.country_sv)*abs(us.sv - cs.country_sv)
+                            ) as country_rank
+    from user_stat us
+    left outer join country_stats cs on
+        (us.j = cs.j)
 )
 
+select user_id, user_name, rv, sv, country_code, country_rv, country_sv
+from stat_dist
+where country_rank = 1
 
-select *
-from user_stat
 
 limit 1

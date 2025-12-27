@@ -49,13 +49,17 @@ finish_message = """'ОК' возвращает вас в главное мен�
 error_message = """Что-то пошло не так. Возможно, ошибка на нашей стороне. А возможно, вы ввели что-то неожиданное
 Попробуйте начать сначала, выбрав команду /start
 """
-results_str = """
+index_str = """
+Ваш индекс традиционных\секулярных ценностей: {rv}
+Ваш индекс ценностей выживания\самовыражения: {sv}
+"""
+nearest_country_str = """
 Ваш индекс традиционных\секулярных ценностей: {rv}
 Ваш индекс ценностей выживания\самовыражения: {sv}
 Страна, жители кооторой ближе всего к вам - это 
 {country_code} (RV {country_rv}, SV {country_sv})
 """
-country_pos_str = """
+position_str = """
 Ваш индекс традиционных\секулярных ценностей: {rv}
 Это больше, чем у {rv_rank}% участников опросов из России
 Ваш индекс ценностей выживания\самовыражения: {sv}
@@ -132,8 +136,20 @@ async def back_to_main_menu(message: types.Message, state: FSMContext):
     await show_main_menu(message)
 
 
-async def show_results(user_id):
+async def show_index(user_id):
     with open('count_ind.sql', 'r') as f:
+        query= f.read()
+    query = query.format(user_id=user_id)
+    results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
+    rv = results_df['rv'].values[0]
+    sv = results_df['sv'].values[0]
+    return index_str.format(
+                rv=rv, 
+                sv=sv
+                )
+
+async def show_nearest_country(user_id):
+    with open('find_country.sql', 'r') as f:
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
@@ -143,7 +159,7 @@ async def show_results(user_id):
     country_rv = results_df['country_rv'].values[0]
     country_sv = results_df['country_sv'].values[0]
 
-    return results_str.format(
+    return nearest_country_str.format(
                 rv=rv, 
                 sv=sv, 
                 country_code=country_code, 
@@ -151,7 +167,7 @@ async def show_results(user_id):
                 country_sv=country_sv
                 )
 
-async def show_country_pos(user_id):
+async def show_position(user_id):
     with open('count_pos.sql', 'r') as f:
         query= f.read()
     query = query.format(user_id=user_id)
@@ -160,7 +176,7 @@ async def show_country_pos(user_id):
     sv = results_df['sv'].values[0]
     rv_rank = int(np.round(results_df['rv_rank'].values[0], 2) * 100)
     sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
-    return country_pos_str.format(
+    return position_str.format(
                 rv=rv, 
                 sv=sv, 
                 rv_rank=rv_rank, 
@@ -200,7 +216,7 @@ async def option1_proc(message):
         print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
     else:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
-        results_str = await show_results(user_id)
+        results_str = await show_index(user_id)
         await message.answer(results_str, reply_markup=ok_markup)
         await Form.waiting_for_option.set()
 
@@ -212,16 +228,16 @@ async def option2_proc(message):
 async def option3_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
-    results_str = await show_results(user_id)
-    await message.answer(results_str, reply_markup=ok_markup)
+    nearest_country_str = await show_nearest_country(user_id)
+    await message.answer(nearest_country_str, reply_markup=ok_markup)
 
 
 async def option4_proc(message):
     # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
     user_name = message.from_user.username
     user_id = message.from_user.id
-    country_pos_str = await show_country_pos(user_id)
-    await message.answer(country_pos_str, reply_markup=ok_markup)
+    user_position_str = await show_position(user_id)
+    await message.answer(user_position_str, reply_markup=ok_markup)
 
 async def get_next_question(user_id):
     print("Зашли в get_next_question")
