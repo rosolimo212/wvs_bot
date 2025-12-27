@@ -99,6 +99,16 @@ bot = Bot(token=telegram_api_token)
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
 
+def make_log_event(
+                user_id,
+                event_type='',
+                parameters=[]
+                ):
+    log_str = [user_id,event_type,parameters]
+    logging_df = pd.DataFrame([log_str], columns=['user_id', 'event_type', 'parameters'])
+    dl.insert_data(logging_df, 'tl', 'wvs_events', 'config_wvs.yaml', section='logging')
+
+
 @dp.message_handler(commands='start', state='*')
 async def show_main_menu(message: types.Message, state: FSMContext):
     await Form.waiting_for_option.set()
@@ -188,12 +198,13 @@ async def option1_proc(message):
     print("Это мы зашли в option1_proc")
     user_id = message.from_user.id
     user_name = message.from_user.username
+    make_log_event(user_id, event_type='main_questionary', parameters=[])
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id))
     print("В option1_proc прочитали номер последнего вопроса", str(num_questions_ready))
     num_questions_rest = len(qv_data['questions']) - num_questions_ready
-    time = np.floor(num_questions_rest * 0.75)
+    time = np.floor(num_questions_rest * 0.35)
     print('num_questions_rest', num_questions_rest)
     if num_questions_rest > 0:
         await message.answer(
@@ -214,14 +225,19 @@ async def option1_proc(message):
         print(variants_to_dialog)
         await message.answer(qv_data['questions'][num_questions_ready]['text'], reply_markup=qv_markup)
         print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
+        make_log_event(user_id, event_type='question_asked', parameters=[{'question_num': qv_data['questions'][num_questions_ready]['num']}])
     else:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
+        make_log_event(user_id, event_type='questions_finished', parameters=[])
         results_str = await show_index(user_id)
         await message.answer(results_str, reply_markup=ok_markup)
         await Form.waiting_for_option.set()
 
 
 async def option2_proc(message):
+    user_name = message.from_user.username
+    user_id = message.from_user.id
+    make_log_event(user_id, event_type='secondary_questionary', parameters=[])
     await message.answer("Эта функция появится позже", reply_markup=ok_markup)
 
 
@@ -229,6 +245,7 @@ async def option3_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
     nearest_country_str = await show_nearest_country(user_id)
+    make_log_event(user_id, event_type='find_country', parameters=[{'answer': nearest_country_str}])
     await message.answer(nearest_country_str, reply_markup=ok_markup)
 
 
@@ -237,10 +254,12 @@ async def option4_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
     user_position_str = await show_position(user_id)
+    make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_position_str}])
     await message.answer(user_position_str, reply_markup=ok_markup)
 
 async def get_next_question(user_id):
     print("Зашли в get_next_question")
+    make_log_event(user_id, event_type='find_country', parameters=[])
     try:
         last_answered_question_df = dl.get_data("""
                             select max(qv_number) as num
