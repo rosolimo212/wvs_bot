@@ -23,6 +23,7 @@ telegram_settings = dl.read_yaml_config('config_wvs.yaml', section='telgram_test
 telegram_api_token = telegram_settings['token']
 admin_chat_id = 249792088
 option_flag = ''
+print("option_flag", option_flag)
 
 postres_settings = dl.read_yaml_config('config_wvs.yaml', section='logging')
 
@@ -99,9 +100,11 @@ async def process_option(message: types.Message, state: FSMContext):
     option_flag = ''
     if message.text.lower() == qv_data['dialogs']['option1_message'].lower():
         option_flag = 'main'
+        print("option_flag", option_flag)
         result = await option1_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option2_message'].lower():
         option_flag = 'secondary'
+        print("option_flag", option_flag)
         result = await option2_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option3_message'].lower():
         result = await option3_proc(message)
@@ -177,6 +180,7 @@ async def option1_proc(message):
     user_name = message.from_user.username
     make_log_event(user_id, event_type='main_questionary', parameters=[])
     option_flag = 'main'
+    print("option_flag", option_flag)
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_answers')
@@ -222,6 +226,7 @@ async def option2_proc(message, option_flag='secondary'):
         # await message.answer_photo(photo)
     
     option_flag = 'secondary'
+    print("option_flag", option_flag)
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_reviews')
