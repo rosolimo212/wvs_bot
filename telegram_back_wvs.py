@@ -212,7 +212,7 @@ async def option1_proc(message):
 
     num_questions_ready = await get_next_question(str(user_id))
     print("В option1_proc прочитали номер последнего вопроса", str(num_questions_ready))
-    num_questions_rest = len(qv_data['questions']) - num_questions_ready
+    num_questions_rest = len(qv_data['main_questions']) - num_questions_ready
     time = np.floor(num_questions_rest * 0.35)
     print('num_questions_rest', num_questions_rest)
     if num_questions_rest > 0:
@@ -224,7 +224,7 @@ async def option1_proc(message):
                                                         ),
                                 reply_markup=ok_markup
                             )
-        variants_from_qv = qv_data['questions'][num_questions_ready]['variants']
+        variants_from_qv = qv_data['main_questions'][num_questions_ready]['variants']
         variants_to_dialog = []
         for v in variants_from_qv:
             variants_to_dialog.append(v)
@@ -232,8 +232,8 @@ async def option1_proc(message):
         print('len', len(variants_to_dialog))
         qv_markup = make_answer_buttons(variants_to_dialog)
         print(variants_to_dialog)
-        await message.answer(qv_data['questions'][num_questions_ready]['text'], reply_markup=qv_markup)
-        print("Задан вопрос ", qv_data['questions'][num_questions_ready]['text'])
+        await message.answer(qv_data['main_questions'][num_questions_ready]['text'], reply_markup=qv_markup)
+        print("Задан вопрос ", qv_data['main_questions'][num_questions_ready]['text'])
         
     else:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
@@ -306,7 +306,7 @@ async def make_qv(message: types.Message, state: FSMContext):
 
     last_question_index = await get_next_question(user_id)
     print("В make_qv номер последнего вопроса", str(last_question_index))
-    last_question = qv_data['questions'][last_question_index]
+    last_question = qv_data['main_questions'][last_question_index]
 
     df_to_sql = pd.DataFrame([
                                 str(message.from_user.id),
@@ -323,7 +323,7 @@ async def make_qv(message: types.Message, state: FSMContext):
     try:
         next_question_index = await get_next_question(user_id)
         print("В make_qv номер следующего вопроса", str(next_question_index))
-        current_question = qv_data['questions'][next_question_index]
+        current_question = qv_data['main_questions'][next_question_index]
 
         variants_from_qv = current_question['variants']
         variants_to_dialog = []
