@@ -211,7 +211,7 @@ async def option1_proc(message, option_flag='main'):
         await Form.waiting_for_option.set()
 
 
-async def option2_proc(message):
+async def option2_proc(message, option_flag='secondary'):
     user_name = message.from_user.username
     user_id = message.from_user.id
     make_log_event(user_id, event_type='secondary_questionary', parameters=[])
