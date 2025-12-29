@@ -22,6 +22,7 @@ sys.path.append(current_dir)
 telegram_settings = dl.read_yaml_config('config_wvs.yaml', section='telgram_test_bot')
 telegram_api_token = telegram_settings['token']
 admin_chat_id = 249792088
+option_flag = ''
 
 postres_settings = dl.read_yaml_config('config_wvs.yaml', section='logging')
 
@@ -98,10 +99,10 @@ async def process_option(message: types.Message, state: FSMContext):
     option_flag = ''
     if message.text.lower() == qv_data['dialogs']['option1_message'].lower():
         option_flag = 'main'
-        result = await option1_proc(message, option_flag)
+        result = await option1_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option2_message'].lower():
         option_flag = 'secondary'
-        result = await option2_proc(message, option_flag)
+        result = await option2_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option3_message'].lower():
         result = await option3_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option4_message'].lower():
@@ -170,7 +171,7 @@ async def show_position(user_id):
                 )
 
 
-async def option1_proc(message, option_flag='main'):
+async def option1_proc(message):
     print("Это мы зашли в option1_proc")
     user_id = message.from_user.id
     user_name = message.from_user.username
@@ -306,7 +307,7 @@ async def get_next_question(user_id, table_name='tl.user_answers'):
 
 
 @dp.message_handler(lambda message: message.text.lower() != 'вернуться позже', state=Form.waiting_for_answer)
-async def make_qv(message: types.Message, state: FSMContext, option_flag):
+async def make_qv(message: types.Message, state: FSMContext):
     print("Это мы зашли в make_qv")
     print("option_flag", option_flag)
     last_answer = str(message.text)
@@ -320,7 +321,10 @@ async def make_qv(message: types.Message, state: FSMContext, option_flag):
 
     last_question_index = await get_next_question(user_id, table_name=table_name)
     print("В make_qv номер последнего вопроса", str(last_question_index))
-    last_question = qv_data['main_questions'][last_question_index]
+    if option_flag == 'main':
+        last_question = qv_data['main_questions'][last_question_index]
+    elif option_flag == 'secondary':
+        last_question = qv_data['secondary_questions'][last_question_index]
 
     df_to_sql = pd.DataFrame([
                                 str(message.from_user.id),
