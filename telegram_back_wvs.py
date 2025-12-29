@@ -100,7 +100,8 @@ async def process_option(message: types.Message, state: FSMContext):
         option_flag = 'main'
         result = await option1_proc(message, option_flag)
     elif message.text.lower() == qv_data['dialogs']['option2_message'].lower():
-        result = await option2_proc(message)
+        option_flag = 'secondary'
+        result = await option2_proc(message, option_flag)
     elif message.text.lower() == qv_data['dialogs']['option3_message'].lower():
         result = await option3_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option4_message'].lower():
