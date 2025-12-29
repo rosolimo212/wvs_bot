@@ -97,7 +97,6 @@ async def show_main_menu(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Form.waiting_for_option)
 async def process_option(message: types.Message, state: FSMContext):
-    option_flag = ''
     if message.text.lower() == qv_data['dialogs']['option1_message'].lower():
         option_flag = 'main'
         print("option_flag", option_flag)
@@ -216,7 +215,7 @@ async def option1_proc(message):
         await Form.waiting_for_option.set()
 
 
-async def option2_proc(message, option_flag='secondary'):
+async def option2_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
     make_log_event(user_id, event_type='secondary_questionary', parameters=[])
