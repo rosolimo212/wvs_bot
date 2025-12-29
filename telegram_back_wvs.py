@@ -95,8 +95,10 @@ async def show_main_menu(message: types.Message, state: FSMContext):
 
 @dp.message_handler(state=Form.waiting_for_option)
 async def process_option(message: types.Message, state: FSMContext):
+    option_flag = ''
     if message.text.lower() == qv_data['dialogs']['option1_message'].lower():
-        result = await option1_proc(message)
+        option_flag = 'main'
+        result = await option1_proc(message, option_flag)
     elif message.text.lower() == qv_data['dialogs']['option2_message'].lower():
         result = await option2_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option3_message'].lower():
@@ -167,11 +169,12 @@ async def show_position(user_id):
                 )
 
 
-async def option1_proc(message):
+async def option1_proc(message, option_flag='main'):
     print("Это мы зашли в option1_proc")
     user_id = message.from_user.id
     user_name = message.from_user.username
     make_log_event(user_id, event_type='main_questionary', parameters=[])
+    option_flag = option_flag
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_answers')
@@ -211,10 +214,44 @@ async def option2_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
     make_log_event(user_id, event_type='secondary_questionary', parameters=[])
-    await message.answer("Эта функция появится позже", reply_markup=ok_markup)
+    # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
     # send a picture to chat
-    with open('geo.png', 'rb') as photo:
-        await message.answer_photo(photo)
+    # with open('geo.png', 'rb') as photo:
+        # await message.answer_photo(photo)
+    await Form.waiting_for_answer.set()
+
+    num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_reviews')
+    print("В option2_proc прочитали номер последнего вопроса", str(num_questions_ready))
+    num_questions_rest = len(qv_data['secondary_questions']) - num_questions_ready
+    time = np.floor(num_questions_rest * 0.35)
+    print('num_questions_rest', num_questions_rest)
+
+    if num_questions_rest > 0:
+        await message.answer(
+                                qv_data['dialogs']['user_data_message'].format(
+                                                        user_name=user_name,
+                                                        num = num_questions_rest,
+                                                        time = time,
+                                                        ),
+                                reply_markup=ok_markup
+                            )
+        variants_from_qv = qv_data['secondary_questions'][num_questions_ready]['variants']
+        variants_to_dialog = []
+        for v in variants_from_qv:
+            variants_to_dialog.append(v)
+        variants_to_dialog.append('Вернуться позже')
+        print('len', len(variants_to_dialog))
+        qv_markup = make_answer_buttons(variants_to_dialog)
+        print(variants_to_dialog)
+        await message.answer(qv_data['secondary_questions'][num_questions_ready]['text'], reply_markup=qv_markup)
+        print("Задан вопрос ", qv_data['secondary_questions'][num_questions_ready]['text'])
+        
+    else:
+        await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
+        make_log_event(user_id, event_type='secondary_questions_finished', parameters=[])
+        await Form.waiting_for_option.set()
+
+    
 
 
 async def option3_proc(message):
@@ -266,8 +303,9 @@ async def get_next_question(user_id, table_name='tl.user_answers'):
 
 
 @dp.message_handler(lambda message: message.text.lower() != 'вернуться позже', state=Form.waiting_for_answer)
-async def make_qv(message: types.Message, state: FSMContext):
+async def make_qv(message: types.Message, state: FSMContext, option_flag='main'):
     print("Это мы зашли в make_qv")
+    print("option_flag", option_flag)
     last_answer = str(message.text)
     print("В make_qv прошлый ответ", str(last_answer))
     user_id = message.from_user.id
