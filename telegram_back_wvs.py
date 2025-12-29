@@ -123,7 +123,7 @@ async def show_main_menu(message: types.Message, state: FSMContext):
                                     option3_message,
                                     option4_message,
                                 ])
-    await message.answer(hello_message)
+    await message.answer(qv_data['dialogs']['hello_message'])
     await message.answer(choice_message, reply_markup=markup)
 
     await Form.waiting_for_option.set()  # Устанавливаем состояние ожидания опции
