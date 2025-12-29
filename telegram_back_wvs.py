@@ -176,7 +176,7 @@ async def option1_proc(message):
     user_id = message.from_user.id
     user_name = message.from_user.username
     make_log_event(user_id, event_type='main_questionary', parameters=[])
-    option_flag = option_flag
+    option_flag = 'main'
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_answers')
@@ -221,7 +221,7 @@ async def option2_proc(message, option_flag='secondary'):
     # with open('geo.png', 'rb') as photo:
         # await message.answer_photo(photo)
     
-    option_flag = option_flag
+    option_flag = 'secondary'
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_reviews')
