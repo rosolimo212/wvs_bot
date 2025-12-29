@@ -248,6 +248,9 @@ async def option2_proc(message):
     user_id = message.from_user.id
     make_log_event(user_id, event_type='secondary_questionary', parameters=[])
     await message.answer("Эта функция появится позже", reply_markup=ok_markup)
+    # send a picture to chat
+    with open('geo.png', 'rb') as photo:
+        await message.answer_photo(photo)
 
 
 async def option3_proc(message):
