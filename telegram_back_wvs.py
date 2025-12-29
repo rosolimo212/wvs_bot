@@ -219,6 +219,8 @@ async def option2_proc(message, option_flag='secondary'):
     # send a picture to chat
     # with open('geo.png', 'rb') as photo:
         # await message.answer_photo(photo)
+    
+    option_flag = option_flag
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_reviews')
@@ -304,7 +306,7 @@ async def get_next_question(user_id, table_name='tl.user_answers'):
 
 
 @dp.message_handler(lambda message: message.text.lower() != 'вернуться позже', state=Form.waiting_for_answer)
-async def make_qv(message: types.Message, state: FSMContext, option_flag='main'):
+async def make_qv(message: types.Message, state: FSMContext, option_flag):
     print("Это мы зашли в make_qv")
     print("option_flag", option_flag)
     last_answer = str(message.text)
