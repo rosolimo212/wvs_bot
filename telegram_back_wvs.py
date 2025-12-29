@@ -174,7 +174,7 @@ async def option1_proc(message):
     make_log_event(user_id, event_type='main_questionary', parameters=[])
     await Form.waiting_for_answer.set()
 
-    num_questions_ready = await get_next_question(str(user_id))
+    num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_answers')
     print("В option1_proc прочитали номер последнего вопроса", str(num_questions_ready))
     num_questions_rest = len(qv_data['main_questions']) - num_questions_ready
     time = np.floor(num_questions_rest * 0.35)
@@ -241,16 +241,17 @@ async def option4_proc(message):
         await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
         make_log_event(user_id, event_type='find_position', parameters=[{'answer': 'No data'}])
 
-async def get_next_question(user_id):
+async def get_next_question(user_id, table_name='tl.user_answers'):
     print("Зашли в get_next_question")
     try:
-        last_answered_question_df = dl.get_data("""
+        last_answered_question_df = dl.get_data(f"""
                             select max(qv_number) as num
-                            from tl.user_answers
+                            from {table_name}
                             where user_id = '{user_id}'
                             limit 1
                             """.format(
-                                        user_id=user_id
+                                        user_id=user_id,
+                                        table_name=table_name
                                         ), 'config_wvs.yaml')
         last_answered_question_df['num'] = last_answered_question_df['num'].fillna(0)
         print("В get_next_question датафрейм целиком", last_answered_question_df)
@@ -271,7 +272,7 @@ async def make_qv(message: types.Message, state: FSMContext):
     print("В make_qv прошлый ответ", str(last_answer))
     user_id = message.from_user.id
 
-    last_question_index = await get_next_question(user_id)
+    last_question_index = await get_next_question(user_id, table_name='tl.user_answers')
     print("В make_qv номер последнего вопроса", str(last_question_index))
     last_question = qv_data['main_questions'][last_question_index]
 
@@ -288,7 +289,7 @@ async def make_qv(message: types.Message, state: FSMContext):
     make_log_event(user_id, event_type='record_answer', parameters=[{'qv_number': int(last_question['num'])}])
 
     try:
-        next_question_index = await get_next_question(user_id)
+        next_question_index = await get_next_question(user_id, table_name='tl.user_answers')
         print("В make_qv номер следующего вопроса", str(next_question_index))
         current_question = qv_data['main_questions'][next_question_index]
 
