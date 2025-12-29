@@ -310,7 +310,12 @@ async def make_qv(message: types.Message, state: FSMContext, option_flag='main')
     print("В make_qv прошлый ответ", str(last_answer))
     user_id = message.from_user.id
 
-    last_question_index = await get_next_question(user_id, table_name='tl.user_answers')
+    if option_flag == 'main':
+        table_name = 'tl.user_answers'
+    elif option_flag == 'secondary':
+        table_name = 'tl.user_reviews'
+
+    last_question_index = await get_next_question(user_id, table_name=table_name)
     print("В make_qv номер последнего вопроса", str(last_question_index))
     last_question = qv_data['main_questions'][last_question_index]
 
@@ -327,7 +332,7 @@ async def make_qv(message: types.Message, state: FSMContext, option_flag='main')
     make_log_event(user_id, event_type='record_answer', parameters=[{'qv_number': int(last_question['num'])}])
 
     try:
-        next_question_index = await get_next_question(user_id, table_name='tl.user_answers')
+        next_question_index = await get_next_question(user_id, table_name=table_name)
         print("В make_qv номер следующего вопроса", str(next_question_index))
         current_question = qv_data['main_questions'][next_question_index]
 
