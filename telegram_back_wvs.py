@@ -29,42 +29,42 @@ postres_settings = dl.read_yaml_config('config_wvs.yaml', section='logging')
 with open('questions.json', 'r', encoding='utf-8') as file:
     qv_data = json.load(file)
 
-hello_message = """Привет! Этот бот поможет тебе разобраться в ценностях и сравнить свои ценности с ценностями других людей
-"""
-choice_message = """Выберете вариант из предложенных: 
-"""
-option1_message = """Заполнить основную анкету"""
-option2_message = """Заполнить дополнительную анкету"""
-option3_message = """Найти страну, близкую вам по ценностям"""
-option4_message = """Понять своё место в социуме"""
-user_data_message = """
-Заполняем основную анкету. 
-Мы будет сохранять ответы для пользователя с именем {user_name} в Telegram.
-Вам осталось заполнить {num} вопросов, это займёт около {time} минут. 
-Вы можете закончить заполнение анкеты и продолжить его в любой момент.  
-Приступаем?
-"""
-finish_message = """'ОК' возвращает вас в главное меню
-"""
-error_message = """Что-то пошло не так. Возможно, ошибка на нашей стороне. А возможно, вы ввели что-то неожиданное
-Попробуйте начать сначала, выбрав команду /start
-"""
-index_str = """
-Ваш индекс традиционных\секулярных ценностей: {rv}
-Ваш индекс ценностей выживания\самовыражения: {sv}
-"""
-nearest_country_str = """
-Ваш индекс традиционных\секулярных ценностей: {rv}
-Ваш индекс ценностей выживания\самовыражения: {sv}
-Страна, жители кооторой ближе всего к вам - это 
-{country_code} (RV {country_rv}, SV {country_sv})
-"""
-position_str = """
-Ваш индекс традиционных\секулярных ценностей: {rv}
-Это больше, чем у {rv_rank}% участников опросов из России
-Ваш индекс ценностей выживания\самовыражения: {sv}
-Это больше, чем у {sv_rank}% участников опросов из России по ценностям выживания\самовыражения
-"""
+# hello_message = """Привет! Этот бот поможет тебе разобраться в ценностях и сравнить свои ценности с ценностями других людей
+# """
+# choice_message = """Выберете вариант из предложенных: 
+# """
+# option1_message = """Заполнить основную анкету"""
+# option2_message = """Заполнить дополнительную анкету"""
+# option3_message = """Найти страну, близкую вам по ценностям"""
+# option4_message = """Понять своё место в социуме"""
+# user_data_message = """
+# Заполняем основную анкету. 
+# Мы будет сохранять ответы для пользователя с именем {user_name} в Telegram.
+# Вам осталось заполнить {num} вопросов, это займёт около {time} минут. 
+# Вы можете закончить заполнение анкеты и продолжить его в любой момент.  
+# Приступаем?
+# """
+# finish_message = """'ОК' возвращает вас в главное меню
+# """
+# error_message = """Что-то пошло не так. Возможно, ошибка на нашей стороне. А возможно, вы ввели что-то неожиданное
+# Попробуйте начать сначала, выбрав команду /start
+# """
+# index_str = """
+# Ваш индекс традиционных\секулярных ценностей: {rv}
+# Ваш индекс ценностей выживания\самовыражения: {sv}
+# """
+# nearest_country_str = """
+# Ваш индекс традиционных\секулярных ценностей: {rv}
+# Ваш индекс ценностей выживания\самовыражения: {sv}
+# Страна, жители кооторой ближе всего к вам - это 
+# {country_code} (RV {country_rv}, SV {country_sv})
+# """
+# position_str = """
+# Ваш индекс традиционных\секулярных ценностей: {rv}
+# Это больше, чем у {rv_rank}% участников опросов из России
+# Ваш индекс ценностей выживания\самовыражения: {sv}
+# Это больше, чем у {sv_rank}% участников опросов из России по ценностям выживания\самовыражения
+# """
 
 # about buttons
 def make_answer_buttons(buttons_lst):
@@ -118,31 +118,31 @@ async def show_main_menu(message: types.Message, state: FSMContext):
     make_log_event(user_id, event_type='main_menu', parameters=[])
 
     markup = make_answer_buttons([
-                                    option1_message, 
-                                    option2_message, 
-                                    option3_message,
-                                    option4_message,
+                                    qv_data['dialogs']['option1_message'], 
+                                    qv_data['dialogs']['option2_message'], 
+                                    qv_data['dialogs']['option3_message'],
+                                    qv_data['dialogs']['option4_message'],
                                 ])
     await message.answer(qv_data['dialogs']['hello_message'])
-    await message.answer(choice_message, reply_markup=markup)
+    await message.answer(qv_data['dialogs']['choice_message'], reply_markup=markup)
 
     await Form.waiting_for_option.set()  # Устанавливаем состояние ожидания опции
 
 
 @dp.message_handler(state=Form.waiting_for_option)
 async def process_option(message: types.Message, state: FSMContext):
-    if message.text.lower() == option1_message.lower():
+    if message.text.lower() == qv_data['dialogs']['option1_message'].lower():
         result = await option1_proc(message)
-    elif message.text.lower() == option2_message.lower():
+    elif message.text.lower() == qv_data['dialogs']['option2_message'].lower():
         result = await option2_proc(message)
-    elif message.text.lower() == option3_message.lower():
+    elif message.text.lower() == qv_data['dialogs']['option3_message'].lower():
         result = await option3_proc(message)
-    elif message.text.lower() == option4_message.lower():
+    elif message.text.lower() == qv_data['dialogs']['option4_message'].lower():
         result = await option4_proc(message)
     elif message.text.lower() == "Ok".lower():
         result = await show_main_menu(message, state)
     else:
-        await message.answer(error_message, reply_markup=ok_markup)
+        await message.answer(qv_data['dialogs']['error_message'], reply_markup=ok_markup)
 
 
 @dp.message_handler(lambda message: message.text.lower() == "Ok", state=Form.waiting_for_option)
@@ -158,7 +158,7 @@ async def show_index(user_id):
     rv = results_df['rv'].values[0]
     sv = results_df['sv'].values[0]
 
-    return index_str.format(
+    return qv_data['dialogs']['index_str'].format(
                 rv=rv, 
                 sv=sv
                 )
@@ -175,7 +175,7 @@ async def show_nearest_country(user_id):
     country_rv = results_df['country_rv'].values[0]
     country_sv = results_df['country_sv'].values[0]
 
-    return nearest_country_str.format(
+    return qv_data['dialogs']['nearest_country_str'].format(
                 rv=rv, 
                 sv=sv, 
                 country_code=country_code, 
@@ -195,7 +195,7 @@ async def show_position(user_id):
     sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
 
 
-    return position_str.format(
+    return qv_data['dialogs']['position_str'].format(
                 rv=rv, 
                 sv=sv, 
                 rv_rank=rv_rank, 
@@ -217,7 +217,7 @@ async def option1_proc(message):
     print('num_questions_rest', num_questions_rest)
     if num_questions_rest > 0:
         await message.answer(
-                                user_data_message.format(
+                                qv_data['dialogs']['user_data_message'].format(
                                                         user_name=user_name,
                                                         num = num_questions_rest,
                                                         time = time,
