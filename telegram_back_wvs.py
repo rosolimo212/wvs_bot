@@ -136,6 +136,7 @@ async def show_nearest_country(user_id):
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
+    print(results_df)
 
     rv = results_df['rv'].values[0]
     sv = results_df['sv'].values[0]
@@ -143,13 +144,14 @@ async def show_nearest_country(user_id):
     country_rv = results_df['country_rv'].values[0]
     country_sv = results_df['country_sv'].values[0]
 
-    return [qv_data['dialogs']['nearest_country_str'].format(
+    res_str = qv_data['dialogs']['nearest_country_str'].format(
                 rv=rv, 
                 sv=sv, 
                 country_code=country_code, 
                 country_rv=country_rv, 
                 country_sv=country_sv
-                ), sv, rv]
+                )
+    return res_str, sv, rv
 
 
 def plot_clusters_with_annotations(
