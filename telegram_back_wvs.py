@@ -214,11 +214,7 @@ async def option2_proc(message, state: FSMContext):
     user_name = message.from_user.username
     user_id = message.from_user.id
     make_log_event(user_id, event_type='secondary_questionary', parameters=[])
-    # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
-    # send a picture to chat
-    # with open('geo.png', 'rb') as photo:
-        # await message.answer_photo(photo)
-    
+
     await state.update_data(option_flag='secondary')
     await Form.waiting_for_answer.set()
 
@@ -230,7 +226,7 @@ async def option2_proc(message, state: FSMContext):
 
     if num_questions_rest > 0:
         await message.answer(
-                                qv_data['dialogs']['user_data_message'].format(
+                                qv_data['dialogs']['second_questionary_message'].format(
                                                         user_name=user_name,
                                                         num = num_questions_rest,
                                                         time = time,
@@ -269,7 +265,6 @@ async def option3_proc(message):
 
 
 async def option4_proc(message):
-    # await message.answer("Эта функция появится позже", reply_markup=ok_markup)
     user_name = message.from_user.username
     user_id = message.from_user.id
     try:
