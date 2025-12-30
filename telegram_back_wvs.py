@@ -21,7 +21,7 @@ import data_load as dl
 import sys
 sys.path.append(current_dir)
 
-telegram_settings = dl.read_yaml_config('config_wvs.yaml', section='telgram_bot')
+telegram_settings = dl.read_yaml_config('config_wvs.yaml', section='telegram_bot')
 telegram_api_token = telegram_settings['token']
 admin_chat_id = 249792088
 
