@@ -299,6 +299,7 @@ def plot_clusters_with_annotations(
 
 
 def show_country_plot(user_sv, user_rv):
+    print("Зашли в show_country_plot")
     df = dl.get_data(
                 """
                 select country_code, country_rv, country_sv
@@ -441,6 +442,7 @@ async def option3_proc(message):
         with open('geo.png', 'rb') as photo:
             await message.answer_photo(photo)
     except Exception as e:
+        print(str(e))
         await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
         make_log_event(user_id, event_type='find_country', parameters=[{'answer': 'No data'}])
 
