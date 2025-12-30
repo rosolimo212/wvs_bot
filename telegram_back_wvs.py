@@ -7,8 +7,10 @@ from aiogram.dispatcher import FSMContext
 
 import numpy as np
 import pandas as pd
+import seaborn as sns
 
 import json
+import matplotlib.pyplot as plt
 
 import os
 current_dir = os.path.abspath(os.getcwd())
@@ -141,15 +143,15 @@ async def show_nearest_country(user_id):
     country_rv = results_df['country_rv'].values[0]
     country_sv = results_df['country_sv'].values[0]
 
-    return qv_data['dialogs']['nearest_country_str'].format(
+    return [qv_data['dialogs']['nearest_country_str'].format(
                 rv=rv, 
                 sv=sv, 
                 country_code=country_code, 
                 country_rv=country_rv, 
                 country_sv=country_sv
-                ), sv, rv
+                ), sv, rv]
 
-import matplotlib.pyplot as plt
+
 def plot_clusters_with_annotations(
     df,
     annotate_list,
