@@ -466,6 +466,18 @@ async def option4_proc(message):
         user_position_str = await show_position(user_id, 'count_pos.sql', qv_data['dialogs']['global_position_str'])
         make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_position_str}])
         await message.answer(user_position_str, reply_markup=ok_markup)
+        try:
+            user_age_position_str = await show_position(user_id, 'age_strat.sql', qv_data['dialogs']['age_position_str'])
+            make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_age_position_str}])
+            await message.answer(user_age_position_str, reply_markup=ok_markup)
+
+            user_gender_age_position_str = await show_position(user_id, 'gender_age_strat.sql', qv_data['dialogs']['gender_age_position_str'])
+            make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_gender_age_position_str}])
+            await message.answer(user_gender_age_position_str, reply_markup=ok_markup)
+        except Exception as e:
+            print(str(e))
+            await message.answer("Если вы заполните дополнительную анкету, мы сможем более точно определить ваше место в социуме", reply_markup=ok_markup)
+            make_log_event(user_id, event_type='find_position', parameters=[{'answer': 'No data'}])
     except Exception as e:
         print(str(e))
         await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
