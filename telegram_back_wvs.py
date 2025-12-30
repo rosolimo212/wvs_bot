@@ -306,7 +306,7 @@ def show_country_plot(user_sv, user_rv):
     print("Зашли в show_country_plot")
     df = dl.get_data(
                 """
-                select country_code, country_rv, country_sv
+                select country_code, country_rv, country_sv, cluster
                 from tl.country_data
                 where country_code != 'EGY'
                 """
