@@ -319,7 +319,15 @@ def show_country_plot(user_sv, user_rv):
 
     ax = plot_clusters_with_annotations(
         df, 
-        ['RUS','USA', 'UZB', 'GTM', 'AND', 'PAK', 'KOR', 'DEU', 'JPN', 'MDV', 'ARG', 'CAN'], 
+        [
+            'RUS','USA', 
+            'UZB', 'GTM', 
+            'AND', 
+            'PAK', 'IRN', 'ARM',
+            'KOR', 'DEU', 'JPN', 
+            'MDV', 'ARG', 
+            'CAN'
+        ], 
         annotate_on='country_code',
         user_point=(user_sv, user_rv), 
         user_label='Вы', 
