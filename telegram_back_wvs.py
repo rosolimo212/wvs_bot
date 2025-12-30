@@ -22,8 +22,6 @@ sys.path.append(current_dir)
 telegram_settings = dl.read_yaml_config('config_wvs.yaml', section='telgram_test_bot')
 telegram_api_token = telegram_settings['token']
 admin_chat_id = 249792088
-option_flag = ''
-print("option_flag", option_flag)
 
 postres_settings = dl.read_yaml_config('config_wvs.yaml', section='logging')
 
@@ -98,13 +96,11 @@ async def show_main_menu(message: types.Message, state: FSMContext):
 @dp.message_handler(state=Form.waiting_for_option)
 async def process_option(message: types.Message, state: FSMContext):
     if message.text.lower() == qv_data['dialogs']['option1_message'].lower():
-        option_flag = 'main'
-        print("option_flag", option_flag)
-        result = await option1_proc(message)
+        await state.update_data(option_flag='main')
+        result = await option1_proc(message, state)
     elif message.text.lower() == qv_data['dialogs']['option2_message'].lower():
-        option_flag = 'secondary'
-        print("option_flag", option_flag)
-        result = await option2_proc(message)
+        await state.update_data(option_flag='secondary')
+        result = await option2_proc(message, state)
     elif message.text.lower() == qv_data['dialogs']['option3_message'].lower():
         result = await option3_proc(message)
     elif message.text.lower() == qv_data['dialogs']['option4_message'].lower():
@@ -173,13 +169,12 @@ async def show_position(user_id):
                 )
 
 
-async def option1_proc(message):
+async def option1_proc(message, state: FSMContext):
     print("Это мы зашли в option1_proc")
     user_id = message.from_user.id
     user_name = message.from_user.username
     make_log_event(user_id, event_type='main_questionary', parameters=[])
-    option_flag = 'main'
-    print("option_flag", option_flag)
+    await state.update_data(option_flag='main')
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_answers')
@@ -215,7 +210,7 @@ async def option1_proc(message):
         await Form.waiting_for_option.set()
 
 
-async def option2_proc(message):
+async def option2_proc(message, state: FSMContext):
     user_name = message.from_user.username
     user_id = message.from_user.id
     make_log_event(user_id, event_type='secondary_questionary', parameters=[])
@@ -224,8 +219,7 @@ async def option2_proc(message):
     # with open('geo.png', 'rb') as photo:
         # await message.answer_photo(photo)
     
-    option_flag = 'secondary'
-    print("option_flag", option_flag)
+    await state.update_data(option_flag='secondary')
     await Form.waiting_for_answer.set()
 
     num_questions_ready = await get_next_question(str(user_id), table_name='tl.user_reviews')
@@ -313,6 +307,9 @@ async def get_next_question(user_id, table_name='tl.user_answers'):
 @dp.message_handler(lambda message: message.text.lower() != 'вернуться позже', state=Form.waiting_for_answer)
 async def make_qv(message: types.Message, state: FSMContext):
     print("Это мы зашли в make_qv")
+    # Get the questionnaire type from state (per-user storage)
+    state_data = await state.get_data()
+    option_flag = state_data.get('option_flag', 'main')  # Default to 'main' if not set
     print("option_flag", option_flag)
     last_answer = str(message.text)
     print("В make_qv прошлый ответ", str(last_answer))
@@ -320,15 +317,21 @@ async def make_qv(message: types.Message, state: FSMContext):
 
     if option_flag == 'main':
         table_name = 'tl.user_answers'
+        questions_key = 'main_questions'
+        table_insert = 'user_answers'
     elif option_flag == 'secondary':
         table_name = 'tl.user_reviews'
+        questions_key = 'secondary_questions'
+        table_insert = 'user_reviews'
+    else:
+        # Fallback to main if flag is invalid
+        table_name = 'tl.user_answers'
+        questions_key = 'main_questions'
+        table_insert = 'user_answers'
 
     last_question_index = await get_next_question(user_id, table_name=table_name)
     print("В make_qv номер последнего вопроса", str(last_question_index))
-    if option_flag == 'main':
-        last_question = qv_data['main_questions'][last_question_index]
-    elif option_flag == 'secondary':
-        last_question = qv_data['secondary_questions'][last_question_index]
+    last_question = qv_data[questions_key][last_question_index]
 
     df_to_sql = pd.DataFrame([
                                 str(message.from_user.id),
@@ -339,13 +342,13 @@ async def make_qv(message: types.Message, state: FSMContext):
                                 last_answer,
                                 ]).T
     df_to_sql.columns = ['user_id', 'user_name', 'qv_id', 'qv_number', 'qv_text', 'answer_text']
-    dl.insert_data(df_to_sql, 'tl', 'user_answers', 'config_wvs.yaml', section='logging')
+    dl.insert_data(df_to_sql, 'tl', table_insert, 'config_wvs.yaml', section='logging')
     make_log_event(user_id, event_type='record_answer', parameters=[{'qv_number': int(last_question['num'])}])
 
     try:
         next_question_index = await get_next_question(user_id, table_name=table_name)
         print("В make_qv номер следующего вопроса", str(next_question_index))
-        current_question = qv_data['main_questions'][next_question_index]
+        current_question = qv_data[questions_key][next_question_index]
 
         variants_from_qv = current_question['variants']
         variants_to_dialog = []
@@ -358,8 +361,9 @@ async def make_qv(message: types.Message, state: FSMContext):
         print("Задан вопрос ", current_question['text'])
     except:
         await message.answer("Вы заполнили анкету целиком! Всё хорошо", reply_markup=ok_markup)
-        results_str = await show_index(user_id)
-        await message.answer(results_str, reply_markup=ok_markup)
+        if option_flag == 'main':
+            results_str = await show_index(user_id)
+            await message.answer(results_str, reply_markup=ok_markup)
         make_log_event(user_id, event_type='questions_finished', parameters=[])
         await state.finish()
         await Form.waiting_for_option.set()
