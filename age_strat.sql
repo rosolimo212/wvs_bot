@@ -122,8 +122,8 @@ gen_sample_raw as
 sample_ranks as
 (
     select 
-        um.rv as rv,
-        um.sv as sv,
+        um.rv as user_rv,
+        um.sv as user_sv,
         gs.rv as gen_rv,
         gs.sv as gen_sv,
         percent_rank() over (order by gs.rv) as rv_rank,
@@ -137,13 +137,13 @@ sample_ranks as
 
 select 
         distinct
-        rv,
-        sv,
+        user_rv as rv,
+        user_sv as sv,
         gen_rv,
         gen_sv,
         rv_rank,
         sv_rank
 from sample_ranks
-where rv = gen_rv and sv = gen_sv
+where user_rv = gen_rv and user_sv = gen_sv
 
 limit 1
