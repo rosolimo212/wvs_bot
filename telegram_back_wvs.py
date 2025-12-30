@@ -339,8 +339,8 @@ def show_country_plot(user_sv, user_rv):
 
 
 
-async def show_position(user_id):
-    with open('count_pos.sql', 'r') as f:
+async def show_position(user_id, query_file, res_str):
+    with open(query_file, 'r') as f:
         query= f.read()
     query = query.format(user_id=user_id)
     results_df = dl.get_data(query, 'config_wvs.yaml', section='logging')
@@ -351,7 +351,7 @@ async def show_position(user_id):
     sv_rank = int(np.round(results_df['sv_rank'].values[0], 2) * 100)
 
 
-    return qv_data['dialogs']['position_str'].format(
+    return res_str.format(
                 rv=rv, 
                 sv=sv, 
                 rv_rank=rv_rank, 
@@ -445,30 +445,32 @@ async def option2_proc(message, state: FSMContext):
 async def option3_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
-    # try:
-    nearest_country_str, sv, rv = await show_nearest_country(user_id)
-    make_log_event(user_id, event_type='find_country', parameters=[{'answer': nearest_country_str}])
-    await message.answer(nearest_country_str, reply_markup=ok_markup)
+    try:
+        nearest_country_str, sv, rv = await show_nearest_country(user_id)
+        make_log_event(user_id, event_type='find_country', parameters=[{'answer': nearest_country_str}])
+        await message.answer(nearest_country_str, reply_markup=ok_markup)
 
-    show_country_plot(sv, rv)
-    with open('geo.png', 'rb') as photo:
-        await message.answer_photo(photo)
-    # except Exception as e:
-    #     print(str(e))
-    #     await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
-    #     make_log_event(user_id, event_type='find_country', parameters=[{'answer': 'No data'}])
+        show_country_plot(sv, rv)
+        with open('geo.png', 'rb') as photo:
+            await message.answer_photo(photo)
+    except Exception as e:
+        print(str(e))
+        await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
+        make_log_event(user_id, event_type='find_country', parameters=[{'answer': 'No data'}])
 
 
 async def option4_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
     try:
-        user_position_str = await show_position(user_id)
+        user_position_str = await show_position(user_id, 'count_pos.sql', qv_data['dialogs']['global_position_str'])
         make_log_event(user_id, event_type='find_position', parameters=[{'answer': user_position_str}])
         await message.answer(user_position_str, reply_markup=ok_markup)
     except Exception as e:
+        print(str(e))
         await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
         make_log_event(user_id, event_type='find_position', parameters=[{'answer': 'No data'}])
+
 
 async def get_next_question(user_id, table_name='tl.user_answers'):
     print("Зашли в get_next_question")
