@@ -40,6 +40,7 @@ prep_val as
             THEN answer_num::int
             ELSE -1
         END AS answer_value,
+        -- главный конструктив - группировка вопросов по категориям
         case 
             when 
                 qv_id in 
@@ -72,6 +73,7 @@ user_stat as
         sv.value as sv,
         1 as j
     from user_val rv
+    -- не самый изящный, но быстрый способо сделать pivot средствами sql
     left outer join user_val sv on
         (rv.user_id = sv.user_id)
     where 
@@ -83,4 +85,5 @@ user_stat as
 select *
 from user_stat
 
+-- даже если вдруг будет сплит, нужно только первая строчка
 limit 1

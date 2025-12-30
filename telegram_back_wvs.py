@@ -147,7 +147,184 @@ async def show_nearest_country(user_id):
                 country_code=country_code, 
                 country_rv=country_rv, 
                 country_sv=country_sv
-                )
+                ), sv, rv
+
+import matplotlib.pyplot as plt
+def plot_clusters_with_annotations(
+    df,
+    annotate_list,
+    annotate_on='country_code',
+    x='country_rv',
+    y='country_sv',
+    hue_candidates=('label', 'cluster', 'labels', 'group'),
+    figsize=(12,8),
+    point_size=80,
+    cmap_small='tab10',
+    user_point=None,
+    user_label='You',
+    user_marker_size=300,
+    user_color='red',
+    user_marker='o',
+    label_fontsize=9,
+    label_fontweight='bold',
+    label_bbox_fc='white',
+    label_bbox_alpha=0.35,    # None -> bbox отключён
+    label_boxstyle='round,pad=0.2'
+):
+    # --- выбрать колонку для hue ---
+    hue_col = None
+    for c in hue_candidates:
+        if c in df.columns:
+            hue_col = c
+            break
+    if hue_col is None:
+        raise ValueError(f"Не найдена колонка для hue. Проверяйте: {hue_candidates}")
+
+    # --- выбрать строки для подписи ---
+    if annotate_on == 'index':
+        rows_to_annotate = df.loc[df.index.intersection(annotate_list)]
+    else:
+        if annotate_on not in df.columns:
+            raise ValueError(f"Колонки '{annotate_on}' нет в df")
+        rows_to_annotate = df[df[annotate_on].isin(annotate_list)]
+
+    if rows_to_annotate.empty:
+        raise ValueError("Ни одна строка не соответствует списку annotate_list")
+
+    # --- подготовка палитры ---
+    df = df.copy()
+    df[hue_col] = df[hue_col].astype('category')
+    n_colors = len(df[hue_col].cat.categories)
+    palette = sns.color_palette(cmap_small if n_colors <= 10 else "husl", n_colors=n_colors)
+
+    plt.figure(figsize=figsize)
+    ax = sns.scatterplot(
+        data=df, x=x, y=y, hue=hue_col,
+        palette=palette, s=point_size, edgecolor='k', alpha=0.9
+    )
+
+    # bbox словарь (или None)
+    def make_bbox():
+        if label_bbox_alpha is None:
+            return None
+        return dict(boxstyle=label_boxstyle, fc=label_bbox_fc, ec='none', alpha=label_bbox_alpha)
+
+    bbox_dict = make_bbox()
+
+    # Calculate 4 pixels offset in data coordinates
+    fig = ax.figure
+    # Force a draw to ensure transforms are set up correctly
+    fig.canvas.draw()
+    # Get the axes bbox in display coordinates (pixels)
+    ax_bbox = ax.get_window_extent()
+    # Get y-axis range in data coordinates
+    y_min, y_max = ax.get_ylim()
+    y_range = y_max - y_min
+    # Get axes height in pixels
+    ax_height_pixels = ax_bbox.height
+    # Convert 4 pixels to data coordinates
+    y_offset_data = (4 / ax_height_pixels) * y_range
+
+    texts = []
+    for _, r in rows_to_annotate.iterrows():
+        # безопасно берем значение для подписи
+        tx = r[annotate_on] if annotate_on != 'index' else r.name
+        # Add 4 pixels offset in y direction
+        t = ax.text(r[x], r[y] + y_offset_data, str(tx),
+                    fontsize=label_fontsize, fontweight=label_fontweight,
+                    ha='left', va='bottom', color='black',
+                    bbox=bbox_dict)
+        texts.append(t)
+
+    # --- обработать user_point ---
+    def extract_user_coords(up):
+        if up is None:
+            return None
+        # tuple/list like (x,y)
+        if isinstance(up, (list, tuple)) and len(up) == 2:
+            return float(up[0]), float(up[1])
+        # dict-like
+        if isinstance(up, dict):
+            ux = up.get(x, up.get('x', None))
+            uy = up.get(y, up.get('y', None))
+            if ux is None or uy is None:
+                raise ValueError("В dict user_point ожидаются ключи '{}' и '{}' или 'x'/'y'".format(x, y))
+            return float(ux), float(uy)
+        # pandas Series (row) или DataFrame (берём первую строку)
+        if isinstance(up, pd.Series):
+            if x in up.index and y in up.index:
+                return float(up[x]), float(up[y])
+            # fallback: попытка по 'x'/'y'
+            if 'x' in up.index and 'y' in up.index:
+                return float(up['x']), float(up['y'])
+            raise ValueError("Series не содержит колонок '{}' и '{}'".format(x, y))
+        if isinstance(up, pd.DataFrame):
+            row = up.iloc[0]
+            return extract_user_coords(row)
+        raise ValueError("user_point должен быть tuple/list (x,y) или dict илиpandas.Series/DataFrame")
+
+    if user_point is not None:
+        ux_uy = extract_user_coords(user_point)
+        ux, uy = ux_uy
+
+        # Draw vertical dashed line at x = user_point[0]
+        ax.axvline(ux, color=user_color, linestyle='--', linewidth=1.5, zorder=200, label=user_label)
+        # Draw horizontal dashed line at y = user_point[1]
+        ax.axhline(uy, color=user_color, linestyle='--', linewidth=1.5, zorder=200)
+
+    # --- скорректировать подписи (если есть adjustText и есть подписи) ---
+    if texts:
+        try:
+            from adjustText import adjust_text
+            adjust_text(texts,
+                        only_move={'points':'y','texts':'y'},
+                        arrowprops=dict(arrowstyle='-', color='gray', lw=0.5),
+                        ax=ax)
+        except Exception:
+            # если adjustText не установлен или упал — пропускаем
+            pass
+
+    ax.set_title(f"Положение относительно других стран", fontsize=14)
+    ax.set_xlabel("Традиционные/Секулярно-рациональные ценности")
+    ax.set_ylabel("Ценности выживания/ Самовыражения")
+    
+    # Show legend only if user_point is provided (to show user label)
+    if user_point is not None:
+        ax.legend(bbox_to_anchor=(1.02,1), loc='upper left')
+    
+    plt.tight_layout()
+    plt.show()
+
+    return ax
+
+
+def show_country_plot(user_sv, user_rv):
+    df = dl.get_data(
+                """
+                select country_code, country_rv, country_sv
+                from tl.country_data
+                where country_code != 'EGY'
+                """
+                , 
+                'config_wvs.yaml', 
+                section='logging'
+        )
+    df['country_rv'] = df['country_rv'].fillna(user_rv).astype(float)
+    df['country_sv'] = df['country_sv'].fillna(user_sv).astype(float)
+
+    ax = plot_clusters_with_annotations(
+        df, 
+        ['RUS','USA', 'UZB', 'GTM', 'AND', 'PAK', 'KOR', 'DEU', 'JPN', 'MDV', 'ARG', 'CAN'], 
+        annotate_on='country_code',
+        user_point=(user_sv, user_rv), 
+        user_label='Вы', 
+        label_bbox_alpha=0.2,
+        x='country_sv',
+        y='country_rv',
+                                )
+    ax.figure.savefig('geo.png')
+
+
 
 async def show_position(user_id):
     with open('count_pos.sql', 'r') as f:
@@ -256,9 +433,13 @@ async def option3_proc(message):
     user_name = message.from_user.username
     user_id = message.from_user.id
     try:
-        nearest_country_str = await show_nearest_country(user_id)
+        nearest_country_str, sv, rv = await show_nearest_country(user_id)
         make_log_event(user_id, event_type='find_country', parameters=[{'answer': nearest_country_str}])
         await message.answer(nearest_country_str, reply_markup=ok_markup)
+
+        show_country_plot(sv, rv)
+        with open('geo.png', 'rb') as photo:
+            await message.answer_photo(photo)
     except Exception as e:
         await message.answer("Для начала нужно заполнить основную анкету", reply_markup=ok_markup)
         make_log_event(user_id, event_type='find_country', parameters=[{'answer': 'No data'}])
