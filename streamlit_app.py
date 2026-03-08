@@ -10,6 +10,7 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Load data_load and config from wvs_bot directory
 _current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,49 @@ with open(os.path.join(_current_dir, "questions.json"), "r", encoding="utf-8") a
 st.set_page_config(page_title="Ценности WVS", layout="wide")
 
 CONFIG_FILE = "config_wvs.yaml"
+
+
+def make_log_event(user_id, event_type="", parameters=None):
+    """Log event to tl.wvs_events. parameters: dict or list, will be stored as JSON string."""
+    if parameters is None:
+        parameters = {}
+    try:
+        params_str = json.dumps(parameters, ensure_ascii=False) if parameters else "{}"
+        logging_df = pd.DataFrame(
+            [[str(user_id), event_type, params_str]],
+            columns=["user_id", "event_type", "parameters"],
+        )
+        dl.insert_data(logging_df, "tl", "wvs_events", CONFIG_FILE, section="logging")
+    except Exception as e:
+        st.warning(f"Логирование не удалось: {e}")
+
+
+def _autofocus_script():
+    """Inject JS to focus the first text input in main content (not sidebar)."""
+    components.html(
+        """
+        <script>
+        (function() {
+            const timer = setInterval(function() {
+                const main = window.parent.document.querySelector('[data-testid="stAppViewContainer"]');
+                if (main) {
+                    const inputs = main.querySelectorAll('input[type="text"]');
+                    for (let i = 0; i < inputs.length; i++) {
+                        const inp = inputs[i];
+                        if (inp && !inp.closest('[data-testid="stSidebar"]')) {
+                            inp.focus();
+                            clearInterval(timer);
+                            return;
+                        }
+                    }
+                }
+            }, 100);
+            setTimeout(() => clearInterval(timer), 3000);
+        })();
+        </script>
+        """,
+        height=0,
+    )
 
 
 def get_next_question(user_id: str, table_name: str = "tl.user_answers") -> int:
@@ -199,60 +243,116 @@ option = st.radio(
 st.divider()
 
 if option == qv_data["dialogs"]["option1_message"]:
-    st.subheader("Основная анкета")
-    num_ready = get_next_question(user_id, "tl.user_answers")
-    num_rest = len(qv_data["main_questions"]) - num_ready
-    time_est = int(np.floor(num_rest * 0.35))
-
-    if num_rest > 0:
-        st.info(f"Осталось {num_rest} вопросов, ~{time_est} мин.")
-        q = qv_data["main_questions"][num_ready]
-        st.write(f"**Вопрос {int(q['num'])}:** {q['text']}")
-
-        answer = st.radio("Ваш ответ", q["variants"] + ["Вернуться позже"], key=f"main_q_{num_ready}")
-
-        if answer and answer != "Вернуться позже" and st.button("Ответить"):
-            df_to_sql = pd.DataFrame([[
-                user_id, user_id, q["id"], int(q["num"]), q["text"], answer
-            ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
-            try:
-                dl.insert_data(df_to_sql, "tl", "user_answers", CONFIG_FILE, section="logging")
-                st.success("Ответ сохранён!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Ошибка сохранения: {e}")
+    if st.session_state.get("return_later"):
+        st.session_state.return_later = False
+        st.info("Вы вернулись в главное меню. Выберите действие выше.")
     else:
-        st.success("Вы заполнили основную анкету!")
-        try:
-            st.markdown(show_index(user_id))
-        except Exception as e:
-            st.error(f"Ошибка: {e}")
+        st.subheader("Основная анкета")
+        if f"log_main_{user_id}" not in st.session_state:
+            make_log_event(user_id, event_type="main_questionary", parameters={})
+            st.session_state[f"log_main_{user_id}"] = True
+        num_ready = get_next_question(user_id, "tl.user_answers")
+        num_rest = len(qv_data["main_questions"]) - num_ready
+        time_est = int(np.floor(num_rest * 0.35))
+
+        if num_rest > 0:
+            st.info(f"Осталось {num_rest} вопросов, ~{time_est} мин.")
+            q = qv_data["main_questions"][num_ready]
+            st.write(f"**Вопрос {int(q['num'])}:** {q['text']}")
+
+            if q["variants"] and q["variants"] != ["-1. Не знаю"]:
+                st.caption("Варианты ответа: " + " | ".join(q["variants"]))
+
+            answer = st.text_input(
+                "Ваш ответ (введите текст или выберите вариант выше)",
+                key=f"main_q_{num_ready}",
+                placeholder="Введите ответ...",
+                label_visibility="collapsed",
+            )
+            _autofocus_script()
+
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                submit = st.button("Ответить", key=f"main_btn_{num_ready}")
+            with col2:
+                if st.button("Вернуться позже", key=f"main_back_{num_ready}"):
+                    st.session_state.return_later = True
+                    st.rerun()
+
+            if submit and answer and answer.strip():
+                df_to_sql = pd.DataFrame([[
+                    user_id, user_id, q["id"], int(q["num"]), q["text"], answer.strip()
+                ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
+                try:
+                    dl.insert_data(df_to_sql, "tl", "user_answers", CONFIG_FILE, section="logging")
+                    make_log_event(user_id, event_type="record_answer", parameters={"qv_number": int(q["num"])})
+                    st.success("Ответ сохранён!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Ошибка сохранения: {e}")
+            elif submit and not answer.strip():
+                st.warning("Введите ответ")
+        else:
+            make_log_event(user_id, event_type="questions_finished", parameters={})
+            st.success("Вы заполнили основную анкету!")
+            try:
+                st.markdown(show_index(user_id))
+            except Exception as e:
+                st.error(f"Ошибка: {e}")
 
 elif option == qv_data["dialogs"]["option2_message"]:
-    st.subheader("Дополнительная анкета")
-    num_ready = get_next_question(user_id, "tl.user_reviews")
-    num_rest = len(qv_data["secondary_questions"]) - num_ready
-    time_est = int(np.floor(num_rest * 0.35))
-
-    if num_rest > 0:
-        st.info(f"Осталось {num_rest} вопросов, ~{time_est} мин.")
-        q = qv_data["secondary_questions"][num_ready]
-        st.write(f"**Вопрос {int(q['num'])}:** {q['text']}")
-
-        answer = st.radio("Ваш ответ", q["variants"] + ["Вернуться позже"], key=f"sec_q_{num_ready}")
-
-        if answer and answer != "Вернуться позже" and st.button("Ответить"):
-            df_to_sql = pd.DataFrame([[
-                user_id, user_id, q["id"], int(q["num"]), q["text"], answer
-            ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
-            try:
-                dl.insert_data(df_to_sql, "tl", "user_reviews", CONFIG_FILE, section="logging")
-                st.success("Ответ сохранён!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Ошибка сохранения: {e}")
+    if st.session_state.get("return_later"):
+        st.session_state.return_later = False
+        st.info("Вы вернулись в главное меню. Выберите действие выше.")
     else:
-        st.success("Вы заполнили дополнительную анкету!")
+        st.subheader("Дополнительная анкета")
+        if f"log_sec_{user_id}" not in st.session_state:
+            make_log_event(user_id, event_type="secondary_questionary", parameters={})
+            st.session_state[f"log_sec_{user_id}"] = True
+        num_ready = get_next_question(user_id, "tl.user_reviews")
+        num_rest = len(qv_data["secondary_questions"]) - num_ready
+        time_est = int(np.floor(num_rest * 0.35))
+
+        if num_rest > 0:
+            st.info(f"Осталось {num_rest} вопросов, ~{time_est} мин.")
+            q = qv_data["secondary_questions"][num_ready]
+            st.write(f"**Вопрос {int(q['num'])}:** {q['text']}")
+
+            if q["variants"]:
+                st.caption("Варианты ответа: " + " | ".join(q["variants"]))
+
+            answer = st.text_input(
+                "Ваш ответ",
+                key=f"sec_q_{num_ready}",
+                placeholder="Введите ответ...",
+                label_visibility="collapsed",
+            )
+            _autofocus_script()
+
+            col1, col2 = st.columns([1, 4])
+            with col1:
+                submit = st.button("Ответить", key=f"sec_btn_{num_ready}")
+            with col2:
+                if st.button("Вернуться позже", key=f"sec_back_{num_ready}"):
+                    st.session_state.return_later = True
+                    st.rerun()
+
+            if submit and answer and answer.strip():
+                df_to_sql = pd.DataFrame([[
+                    user_id, user_id, q["id"], int(q["num"]), q["text"], answer.strip()
+                ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
+                try:
+                    dl.insert_data(df_to_sql, "tl", "user_reviews", CONFIG_FILE, section="logging")
+                    make_log_event(user_id, event_type="record_answer", parameters={"qv_number": int(q["num"])})
+                    st.success("Ответ сохранён!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Ошибка сохранения: {e}")
+            elif submit and not answer.strip():
+                st.warning("Введите ответ")
+        else:
+            make_log_event(user_id, event_type="secondary_questions_finished", parameters={})
+            st.success("Вы заполнили дополнительную анкету!")
 
 elif option == qv_data["dialogs"]["option3_message"]:
     st.subheader("Найти страну, близкую по ценностям")
@@ -260,13 +360,16 @@ elif option == qv_data["dialogs"]["option3_message"]:
         result = show_nearest_country(user_id)
         if result[0] is not None:
             res_str, sv, rv = result
+            make_log_event(user_id, event_type="find_country", parameters={"answer": res_str[:100]})
             st.markdown(res_str)
             fig = show_country_plot(sv, rv)
             if fig is not None:
                 st.pyplot(fig)
         else:
+            make_log_event(user_id, event_type="find_country", parameters={"answer": "No data"})
             st.warning("Для начала нужно заполнить основную анкету")
     except Exception as e:
+        make_log_event(user_id, event_type="find_country", parameters={"answer": str(e)})
         st.error(f"Для начала нужно заполнить основную анкету. Ошибка: {e}")
 
 elif option == qv_data["dialogs"]["option4_message"]:
@@ -274,6 +377,7 @@ elif option == qv_data["dialogs"]["option4_message"]:
     try:
         pos_str = show_position(user_id, "count_pos.sql", qv_data["dialogs"]["global_position_str"])
         if pos_str:
+            make_log_event(user_id, event_type="find_position", parameters={"answer": pos_str[:100]})
             st.markdown(pos_str)
             try:
                 age_str = show_position(user_id, "age_strat.sql", qv_data["dialogs"]["age_position_str"])
@@ -283,8 +387,11 @@ elif option == qv_data["dialogs"]["option4_message"]:
                 if gender_str:
                     st.markdown(gender_str)
             except Exception:
+                make_log_event(user_id, event_type="find_position", parameters={"answer": "No secondary data"})
                 st.info("Если вы заполните дополнительную анкету, мы сможем точнее определить ваше место")
         else:
+            make_log_event(user_id, event_type="find_position", parameters={"answer": "No data"})
             st.warning("Для начала нужно заполнить основную анкету")
     except Exception as e:
+        make_log_event(user_id, event_type="find_position", parameters={"answer": str(e)})
         st.error(f"Для начала нужно заполнить основную анкету. Ошибка: {e}")

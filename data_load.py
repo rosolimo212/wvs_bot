@@ -60,7 +60,12 @@ def get_data(query: str, file, section='logging') -> list:
 def get_engine(file, section='logging'):
     settings = read_yaml_config(file, section)
     from sqlalchemy import create_engine
-    postgresql_engine_st = "postgresql://"+settings['user']+":"+settings['password']+"@"+settings['host']+"/"+settings['database']
+    sslmode = settings.get('sslmode', 'require')
+    postgresql_engine_st = (
+        "postgresql://" + settings['user'] + ":" + settings['password']
+        + "@" + settings['host'] + "/" + settings['database']
+        + "?sslmode=" + str(sslmode)
+    )
     postgresql_engine = create_engine(postgresql_engine_st)
 
     return postgresql_engine
@@ -71,12 +76,17 @@ def insert_data(df_to_sql, schema, table_name, file, section='logging'):
 
     main_engine = get_engine(file, section)
 
+    df_to_sql = df_to_sql.copy()
     df_to_sql['insert_time'] = now
-    df_to_sql.to_sql(
-                            table_name, 
-                            con=main_engine, 
-                            schema=schema,
-                            if_exists='append', 
-                            index=False
-                        )
-    print(str(len(df_to_sql))+' rows inserted to  '+table_name)
+    try:
+        df_to_sql.to_sql(
+            table_name,
+            con=main_engine,
+            schema=schema,
+            if_exists='append',
+            index=False,
+        )
+        print(str(len(df_to_sql)) + ' rows inserted to ' + table_name)
+    except Exception as err:
+        print(f"insert_data failed ({table_name}): {err}")
+        raise
