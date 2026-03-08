@@ -260,16 +260,20 @@ if option == qv_data["dialogs"]["option1_message"]:
             q = qv_data["main_questions"][num_ready]
             st.write(f"**Вопрос {int(q['num'])}:** {q['text']}")
 
-            if q["variants"] and q["variants"] != ["-1. Не знаю"]:
-                st.caption("Варианты ответа: " + " | ".join(q["variants"]))
+            CUSTOM_OPTION = "✏️ Ввести свой ответ"
+            options = q["variants"] + [CUSTOM_OPTION] + ["Вернуться позже"]
 
-            answer = st.text_input(
-                "Ваш ответ (введите текст или выберите вариант выше)",
-                key=f"main_q_{num_ready}",
-                placeholder="Введите ответ...",
-                label_visibility="collapsed",
-            )
-            _autofocus_script()
+            selected = st.radio("Выберите ответ", options, key=f"main_q_{num_ready}", label_visibility="collapsed")
+
+            custom_answer = ""
+            if selected == CUSTOM_OPTION:
+                custom_answer = st.text_input(
+                    "Введите свой ответ",
+                    key=f"main_custom_{num_ready}",
+                    placeholder="Введите ответ...",
+                    label_visibility="collapsed",
+                )
+                _autofocus_script()
 
             col1, col2 = st.columns([1, 4])
             with col1:
@@ -279,19 +283,30 @@ if option == qv_data["dialogs"]["option1_message"]:
                     st.session_state.return_later = True
                     st.rerun()
 
-            if submit and answer and answer.strip():
-                df_to_sql = pd.DataFrame([[
-                    user_id, user_id, q["id"], int(q["num"]), q["text"], answer.strip()
-                ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
-                try:
-                    dl.insert_data(df_to_sql, "tl", "user_answers", CONFIG_FILE, section="logging")
-                    make_log_event(user_id, event_type="record_answer", parameters={"qv_number": int(q["num"])})
-                    st.success("Ответ сохранён!")
+            if submit:
+                if selected == "Вернуться позже":
+                    st.session_state.return_later = True
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Ошибка сохранения: {e}")
-            elif submit and not answer.strip():
-                st.warning("Введите ответ")
+                elif selected == CUSTOM_OPTION:
+                    if custom_answer and custom_answer.strip():
+                        answer = custom_answer.strip()
+                    else:
+                        st.warning("Введите свой ответ")
+                        answer = None
+                else:
+                    answer = selected
+
+                if answer:
+                    df_to_sql = pd.DataFrame([[
+                        user_id, user_id, q["id"], int(q["num"]), q["text"], answer
+                    ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
+                    try:
+                        dl.insert_data(df_to_sql, "tl", "user_answers", CONFIG_FILE, section="logging")
+                        make_log_event(user_id, event_type="record_answer", parameters={"qv_number": int(q["num"])})
+                        st.success("Ответ сохранён!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Ошибка сохранения: {e}")
         else:
             make_log_event(user_id, event_type="questions_finished", parameters={})
             st.success("Вы заполнили основную анкету!")
@@ -318,16 +333,20 @@ elif option == qv_data["dialogs"]["option2_message"]:
             q = qv_data["secondary_questions"][num_ready]
             st.write(f"**Вопрос {int(q['num'])}:** {q['text']}")
 
-            if q["variants"]:
-                st.caption("Варианты ответа: " + " | ".join(q["variants"]))
+            CUSTOM_OPTION = "✏️ Ввести свой ответ"
+            options = q["variants"] + [CUSTOM_OPTION] + ["Вернуться позже"]
 
-            answer = st.text_input(
-                "Ваш ответ",
-                key=f"sec_q_{num_ready}",
-                placeholder="Введите ответ...",
-                label_visibility="collapsed",
-            )
-            _autofocus_script()
+            selected = st.radio("Выберите ответ", options, key=f"sec_q_{num_ready}", label_visibility="collapsed")
+
+            custom_answer = ""
+            if selected == CUSTOM_OPTION:
+                custom_answer = st.text_input(
+                    "Введите свой ответ",
+                    key=f"sec_custom_{num_ready}",
+                    placeholder="Введите ответ...",
+                    label_visibility="collapsed",
+                )
+                _autofocus_script()
 
             col1, col2 = st.columns([1, 4])
             with col1:
@@ -337,19 +356,30 @@ elif option == qv_data["dialogs"]["option2_message"]:
                     st.session_state.return_later = True
                     st.rerun()
 
-            if submit and answer and answer.strip():
-                df_to_sql = pd.DataFrame([[
-                    user_id, user_id, q["id"], int(q["num"]), q["text"], answer.strip()
-                ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
-                try:
-                    dl.insert_data(df_to_sql, "tl", "user_reviews", CONFIG_FILE, section="logging")
-                    make_log_event(user_id, event_type="record_answer", parameters={"qv_number": int(q["num"])})
-                    st.success("Ответ сохранён!")
+            if submit:
+                if selected == "Вернуться позже":
+                    st.session_state.return_later = True
                     st.rerun()
-                except Exception as e:
-                    st.error(f"Ошибка сохранения: {e}")
-            elif submit and not answer.strip():
-                st.warning("Введите ответ")
+                elif selected == CUSTOM_OPTION:
+                    if custom_answer and custom_answer.strip():
+                        answer = custom_answer.strip()
+                    else:
+                        st.warning("Введите свой ответ")
+                        answer = None
+                else:
+                    answer = selected
+
+                if answer:
+                    df_to_sql = pd.DataFrame([[
+                        user_id, user_id, q["id"], int(q["num"]), q["text"], answer
+                    ]], columns=["user_id", "user_name", "qv_id", "qv_number", "qv_text", "answer_text"])
+                    try:
+                        dl.insert_data(df_to_sql, "tl", "user_reviews", CONFIG_FILE, section="logging")
+                        make_log_event(user_id, event_type="record_answer", parameters={"qv_number": int(q["num"])})
+                        st.success("Ответ сохранён!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Ошибка сохранения: {e}")
         else:
             make_log_event(user_id, event_type="secondary_questions_finished", parameters={})
             st.success("Вы заполнили дополнительную анкету!")
