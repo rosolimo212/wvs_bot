@@ -405,6 +405,8 @@ async def option1_proc(message, state: FSMContext):
         make_log_event(user_id, event_type='questions_finished', parameters=[])
         results_str = await show_index(user_id)
         await message.answer(results_str, reply_markup=ok_markup)
+        await message.answer(qv_data['dialogs']['hello_message_6'], reply_markup=ok_markup)
+        await message.answer(qv_data['dialogs']['hello_message_7'], reply_markup=ok_markup)
         await Form.waiting_for_option.set()
 
 
