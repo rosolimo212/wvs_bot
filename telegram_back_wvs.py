@@ -89,15 +89,7 @@ async def show_main_menu(message: types.Message, state: FSMContext):
                                     qv_data['dialogs']['option3_message'],
                                     qv_data['dialogs']['option4_message'],
                                 ])
-    # await message.answer(qv_data['dialogs']['hello_message'])
-    await message.answer(qv_data['dialogs']['hello_message_1'])
-    await message.answer(qv_data['dialogs']['hello_message_2'])
-    await message.answer(qv_data['dialogs']['hello_message_3'])
-    await message.answer(qv_data['dialogs']['hello_message_4'])
-    await message.answer(qv_data['dialogs']['hello_message_5'])
-    await message.answer(qv_data['dialogs']['hello_message_6'])
-    await message.answer(qv_data['dialogs']['hello_message_7'])
-    await message.answer(qv_data['dialogs']['hello_message_8'])
+    await message.answer(qv_data['dialogs']['hello_message'])
     await message.answer(qv_data['dialogs']['choice_message'], reply_markup=markup)
 
     await Form.waiting_for_option.set()  # Устанавливаем состояние ожидания опции
@@ -405,8 +397,6 @@ async def option1_proc(message, state: FSMContext):
         make_log_event(user_id, event_type='questions_finished', parameters=[])
         results_str = await show_index(user_id)
         await message.answer(results_str, reply_markup=ok_markup)
-        await message.answer(qv_data['dialogs']['hello_message_6'], reply_markup=ok_markup)
-        await message.answer(qv_data['dialogs']['hello_message_7'], reply_markup=ok_markup)
         await Form.waiting_for_option.set()
 
 
