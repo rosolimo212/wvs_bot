@@ -19,3 +19,9 @@ telegram:
 
 paths:
   questions_file: questions.json
+
+analytics:
+  # Схема справочников gen_sample / country_data (legacy SQL ожидает tl)
+  reference_schema: tl
+  gen_sample_csv: gen_sample.csv
+  country_data_csv: country_data.csv

@@ -28,6 +28,7 @@ SQL_FILES = (
     "sql/002_user_answers.sql",
     "sql/003_unique_channel_external.sql",
     "sql/004_user_reviews.sql",
+    "sql/005_reference_schema.sql",
 )
 
 

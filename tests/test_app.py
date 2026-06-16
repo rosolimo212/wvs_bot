@@ -124,7 +124,8 @@ def test_option_3_locked_until_complete() -> None:
         "option_3",
         {"user_name": "Роман"},
     )
-    assert message("feature_stub", "streamlit") in unlocked.text
+    assert message("analytics_no_data", "streamlit") in unlocked.text
+    assert unlocked.screen == Screen.FIND_COUNTRY
 
 
 def test_return_later_goes_to_main_menu() -> None:
@@ -190,6 +191,7 @@ def test_option_2_starts_secondary_questionary() -> None:
     assert response.screen == Screen.SECONDARY_QUESTIONARY
     assert "дополнительную анкету" in response.text
     assert service._secondary_questions[0]["text"] in response.text
+    assert response.text.count("Осталось 14 вопросов") == 1
 
 
 def test_secondary_questionary_resume_after_answer() -> None:

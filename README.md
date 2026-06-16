@@ -31,7 +31,19 @@ cp config.example.yaml config.yaml
 streamlit run ui/streamlit_app.py
 ```
 
-При `logging_enabled: true` схема `wvs` создаётся автоматически при старте (см. `core/db_schema.py`).
+При `logging_enabled: true` схема `wvs` и пустые таблицы справочников `tl` создаются автоматически при старте (см. `core/db_schema.py`).
+
+### Справочные данные (аналитика)
+
+Положите в корень проекта `gen_sample.csv` и `country_data.csv`, затем:
+
+```bash
+python3 scripts/load_reference_data.py
+# только проверить:
+python3 scripts/load_reference_data.py --status
+```
+
+Таблицы: `tl.gen_sample` (~97k строк), `tl.country_data`. Нужны для пунктов меню «Найти страну» и «Понять своё место в социуме».
 
 ## Конфигурация
 

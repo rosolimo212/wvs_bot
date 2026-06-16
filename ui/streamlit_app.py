@@ -205,6 +205,22 @@ def run_streamlit(config: dict[str, Any]) -> None:
     )
     st.markdown(state.get("last_text", ""))
 
+    meta = state.get("meta", {})
+    if meta.get("show_country_plot") and meta.get("user_rv") is not None:
+        logging_config = config.get("logging") if config.get("app", {}).get("logging_enabled") else None
+        if logging_config:
+            from ui.country_plot import build_country_plot
+
+            reference_schema = str(config.get("analytics", {}).get("reference_schema", "tl"))
+            fig = build_country_plot(
+                float(meta["user_sv"]),
+                float(meta["user_rv"]),
+                logging_config,
+                reference_schema=reference_schema,
+            )
+            if fig is not None:
+                st.pyplot(fig)
+
     screen = state.get("screen", Screen.START.value)
 
     if screen == Screen.START.value:

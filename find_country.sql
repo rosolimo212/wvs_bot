@@ -10,7 +10,7 @@ base as
             -- но они могут быть отрицательные
             substring(
                         ltrim(left(answer_text, 10)) 
-                        FROM $$^[+-]?[0-results_str9]+$$
+                        FROM $$^[+-]?[0-9]+$$
                         ) as answer_num
     FROM tl.user_answers
     where user_id = '{user_id}'

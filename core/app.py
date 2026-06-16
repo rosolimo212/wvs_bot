@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from core.analytics.indices import compute_main_indices
+from core.analytics.country import find_nearest_country
+from core.analytics.position import find_age_position, find_gender_age_position, find_global_position
 from core.brain import (
     is_back_to_menu,
     is_return_later,
@@ -17,7 +19,9 @@ from core.brain import (
     on_change_name_prompt,
     on_empty_name,
     on_feature_locked,
-    on_feature_stub,
+    on_find_country,
+    on_find_own_place,
+    on_analytics_no_data,
     on_main_answer_empty,
     on_main_answer_invalid,
     on_main_menu_reminder,
@@ -29,7 +33,7 @@ from core.brain import (
     on_start,
     on_telegram_name_confirm,
 )
-from core.messages import back_to_menu_button, change_name_button, confirm_name_button
+from core.messages import back_to_menu_button, change_name_button, confirm_name_button, message
 from core.questionnaire.loader import question_input_mode
 from core.logging.base import EventLogger
 from core.models import (
@@ -380,6 +384,14 @@ class AppService:
         )
         return self._show_secondary_question(identity, channel, payload, show_intro=True)
 
+    def _logging_config(self) -> dict[str, Any] | None:
+        if self.config.get("app", {}).get("logging_enabled"):
+            return self.config.get("logging")
+        return None
+
+    def _reference_schema(self) -> str:
+        return str(self.config.get("analytics", {}).get("reference_schema", "tl"))
+
     def _handle_option_3(
         self,
         identity: UserIdentity,
@@ -395,7 +407,30 @@ class AppService:
         )
         if not self.is_main_questionary_complete(identity):
             return on_feature_locked(channel, **self._menu_meta(identity))
-        return on_feature_stub(channel, screen=Screen.FIND_COUNTRY)
+
+        logging_config = self._logging_config()
+        if logging_config is None:
+            return on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
+
+        try:
+            result = find_nearest_country(
+                identity.user_id,
+                logging_config,
+                reference_schema=self._reference_schema(),
+            )
+        except Exception:
+            result = None
+        if result is None:
+            return on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
+
+        return on_find_country(
+            rv=result.rv,
+            sv=result.sv,
+            country_code=result.country_code,
+            country_rv=result.country_rv,
+            country_sv=result.country_sv,
+            channel=channel,
+        )
 
     def _handle_option_4(
         self,
@@ -412,7 +447,72 @@ class AppService:
         )
         if not self.is_main_questionary_complete(identity):
             return on_feature_locked(channel, **self._menu_meta(identity))
-        return on_feature_stub(channel, screen=Screen.FIND_OWN_PLACE)
+
+        logging_config = self._logging_config()
+        if logging_config is None:
+            return on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+
+        try:
+            global_pos = find_global_position(
+                identity.user_id,
+                logging_config,
+                reference_schema=self._reference_schema(),
+            )
+        except Exception:
+            global_pos = None
+        if global_pos is None:
+            return on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+
+        parts = [
+            message(
+                "find_own_place_global",
+                channel,
+                rv=global_pos.rv,
+                sv=global_pos.sv,
+                rv_rank=global_pos.rv_rank,
+                sv_rank=global_pos.sv_rank,
+            )
+        ]
+
+        try:
+            age_pos = find_age_position(
+                identity.user_id,
+                logging_config,
+                reference_schema=self._reference_schema(),
+            )
+        except Exception:
+            age_pos = None
+        if age_pos:
+            parts.append(
+                message(
+                    "find_own_place_age",
+                    channel,
+                    rv_rank=age_pos.rv_rank,
+                    sv_rank=age_pos.sv_rank,
+                )
+            )
+
+        try:
+            gender_age_pos = find_gender_age_position(
+                identity.user_id,
+                logging_config,
+                reference_schema=self._reference_schema(),
+            )
+        except Exception:
+            gender_age_pos = None
+        if gender_age_pos:
+            parts.append(
+                message(
+                    "find_own_place_gender_age",
+                    channel,
+                    rv_rank=gender_age_pos.rv_rank,
+                    sv_rank=gender_age_pos.sv_rank,
+                )
+            )
+        elif age_pos is None:
+            parts.append(message("find_own_place_secondary_hint", channel))
+
+        return on_find_own_place("\n\n".join(parts), channel)
 
     def _show_main_question(
         self,

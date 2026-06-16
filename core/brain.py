@@ -178,14 +178,6 @@ def on_secondary_question_show(
     time_est = estimate_minutes(remaining)
     return_later_label = return_later_button(channel)
     input_mode = question_input_mode(question)
-    prompt = message(
-        "secondary_question_prompt",
-        channel,
-        remaining=remaining,
-        time=time_est,
-        q_num=int(question["num"]),
-        q_text=question["text"],
-    )
     if show_intro:
         intro = message(
             "secondary_questionary_intro",
@@ -193,7 +185,22 @@ def on_secondary_question_show(
             remaining=remaining,
             time=time_est,
         )
-        prompt = f"{intro}\n\n{prompt}"
+        body = message(
+            "secondary_question_body",
+            channel,
+            q_num=int(question["num"]),
+            q_text=question["text"],
+        )
+        prompt = f"{intro}\n\n{body}"
+    else:
+        prompt = message(
+            "secondary_question_prompt",
+            channel,
+            remaining=remaining,
+            time=time_est,
+            q_num=int(question["num"]),
+            q_text=question["text"],
+        )
     return AppResponse(
         text=prompt,
         buttons=list(question["variants"]) + [return_later_label],
@@ -212,6 +219,51 @@ def on_secondary_questionary_complete(channel: str | None = None) -> AppResponse
         text=message("secondary_questionary_complete", channel),
         buttons=menu_buttons(channel),
         screen=Screen.MAIN_MENU,
+    )
+
+
+def on_find_country(
+    *,
+    rv: float,
+    sv: float,
+    country_code: str,
+    country_rv: float,
+    country_sv: float,
+    channel: str | None = None,
+) -> AppResponse:
+    return AppResponse(
+        text=message(
+            "find_country_result",
+            channel,
+            rv=rv,
+            sv=sv,
+            country_code=country_code,
+            country_rv=country_rv,
+            country_sv=country_sv,
+        ),
+        buttons=[back_to_menu_button(channel)],
+        screen=Screen.FIND_COUNTRY,
+        meta={
+            "user_rv": rv,
+            "user_sv": sv,
+            "show_country_plot": True,
+        },
+    )
+
+
+def on_find_own_place(text: str, channel: str | None = None) -> AppResponse:
+    return AppResponse(
+        text=text,
+        buttons=[back_to_menu_button(channel)],
+        screen=Screen.FIND_OWN_PLACE,
+    )
+
+
+def on_analytics_no_data(channel: str | None = None, *, screen: Screen) -> AppResponse:
+    return AppResponse(
+        text=message("analytics_no_data", channel),
+        buttons=[back_to_menu_button(channel)],
+        screen=screen,
     )
 
 
@@ -265,6 +317,9 @@ __all__ = [
     "on_empty_name",
     "on_feature_locked",
     "on_feature_stub",
+    "on_find_country",
+    "on_find_own_place",
+    "on_analytics_no_data",
     "on_main_answer_empty",
     "on_main_answer_invalid",
     "on_main_menu_reminder",
