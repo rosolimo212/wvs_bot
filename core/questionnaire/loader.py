@@ -24,7 +24,19 @@ def load_questions(path: str | Path) -> dict[str, Any]:
 
 
 def get_main_questions(questions_data: dict[str, Any]) -> list[dict[str, Any]]:
-    return list(questions_data["main_questions"])
+    return [_normalize_question(question) for question in questions_data["main_questions"]]
+
+
+def normalize_question_text(text: str) -> str:
+    """В исходном JSON перенос строки иногда записан как /n вместо \\n."""
+    return text.replace("/n", "\n")
+
+
+def _normalize_question(question: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(question)
+    if "text" in normalized:
+        normalized["text"] = normalize_question_text(str(normalized["text"]))
+    return normalized
 
 
 def question_input_mode(question: dict[str, Any]) -> str:
