@@ -1,15 +1,6 @@
 # coding: utf-8
 """
 Мозг системы — чистая логика сценария без I/O.
-
-Цель:
-    Определить переходы экранов и тексты ответов для WVS-бота.
-
-Вход:
-    Действия пользователя (имя, выбор пункта меню).
-
-Выход:
-    AppResponse — единый ответ ядра для любого UI-клиента.
 """
 
 from __future__ import annotations
@@ -89,35 +80,12 @@ def on_main_menu_reminder(channel: str | None = None) -> AppResponse:
     )
 
 
-def on_main_questionary_stub(channel: str | None = None) -> AppResponse:
+def on_feature_stub(channel: str | None = None, *, screen: Screen) -> AppResponse:
+    """Одинаковая заглушка для всех четырёх пунктов главного меню."""
     return AppResponse(
-        text=message("main_questionary_stub", channel),
+        text=message("feature_stub", channel),
         buttons=[back_to_menu_button(channel)],
-        screen=Screen.MAIN_QUESTIONARY,
-    )
-
-
-def on_secondary_questionary_stub(channel: str | None = None) -> AppResponse:
-    return AppResponse(
-        text=message("secondary_questionary_stub", channel),
-        buttons=[back_to_menu_button(channel)],
-        screen=Screen.SECONDARY_QUESTIONARY,
-    )
-
-
-def on_find_country_locked(channel: str | None = None) -> AppResponse:
-    return AppResponse(
-        text=message("find_country_locked", channel),
-        buttons=menu_buttons(channel),
-        screen=Screen.MAIN_MENU,
-    )
-
-
-def on_find_own_place_locked(channel: str | None = None) -> AppResponse:
-    return AppResponse(
-        text=message("find_own_place_locked", channel),
-        buttons=menu_buttons(channel),
-        screen=Screen.MAIN_MENU,
+        screen=screen,
     )
 
 
@@ -147,12 +115,9 @@ __all__ = [
     "match_menu_button",
     "on_change_name_prompt",
     "on_empty_name",
-    "on_find_country_locked",
-    "on_find_own_place_locked",
+    "on_feature_stub",
     "on_main_menu_reminder",
-    "on_main_questionary_stub",
     "on_name_entered",
-    "on_secondary_questionary_stub",
     "on_start",
     "on_telegram_name_confirm",
 ]

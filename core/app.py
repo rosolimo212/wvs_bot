@@ -1,16 +1,6 @@
 # coding: utf-8
 """
 AppService — оркестратор ядра WVS.
-
-Цель:
-    Единая точка входа бизнес-логики для streamlit, telegram и console.
-
-Поток:
-    UI → handle_start / handle_action(identity, channel, action, payload)
-    → brain (тексты из dialog_messages.json) → logger.
-
-Риски:
-    Логика анкеты и расчёта индексов пока не перенесена — пункты меню отдают заглушки.
 """
 
 from __future__ import annotations
@@ -23,16 +13,13 @@ from core.brain import (
     match_menu_button,
     on_change_name_prompt,
     on_empty_name,
-    on_find_country_locked,
-    on_find_own_place_locked,
+    on_feature_stub,
     on_main_menu_reminder,
-    on_main_questionary_stub,
     on_name_entered,
-    on_secondary_questionary_stub,
     on_start,
     on_telegram_name_confirm,
 )
-from core.messages import change_name_button, confirm_name_button
+from core.messages import back_to_menu_button, change_name_button, confirm_name_button
 from core.logging.base import EventLogger
 from core.models import (
     ACTION_BACK_TO_MENU,
@@ -48,6 +35,13 @@ from core.models import (
     UserIdentity,
 )
 
+_OPTION_START_EVENTS: dict[str, tuple[str, Screen]] = {
+    ACTION_OPTION_1: ("main_questionary_start", Screen.MAIN_QUESTIONARY),
+    ACTION_OPTION_2: ("secondary_questionary_start", Screen.SECONDARY_QUESTIONARY),
+    ACTION_OPTION_3: ("find_counry_start", Screen.FIND_COUNTRY),
+    ACTION_OPTION_4: ("find_own_place_start", Screen.FIND_OWN_PLACE),
+}
+
 
 class AppService:
     """Единая точка входа бизнес-логики для всех интерфейсов."""
@@ -60,6 +54,22 @@ class AppService:
         self, identity: UserIdentity, channel: str
     ) -> UserIdentity:
         return self.logger.ensure_user(channel, identity.external_user_id)
+
+    def _log_main_menu_visit(self, identity: UserIdentity, channel: str) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="main_menu_visit",
+            channel=channel,
+            event_parameters=None,
+        )
+
+    def _log_main_menu_click(self, identity: UserIdentity, channel: str) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="main_menu_click",
+            channel=channel,
+            event_parameters={"button": back_to_menu_button(channel)},
+        )
 
     def handle_start(
         self,
@@ -87,12 +97,7 @@ class AppService:
                 channel=channel,
                 event_parameters=None,
             )
-            self.logger.log_event(
-                identity=identity,
-                event_name="main_menu_visit",
-                channel=channel,
-                event_parameters=None,
-            )
+            self._log_main_menu_visit(identity, channel)
             return on_name_entered(existing_name, channel)
 
         self._ensure_user_stub(identity, channel)
@@ -145,16 +150,16 @@ class AppService:
             return on_change_name_prompt(channel)
 
         if action == ACTION_OPTION_1:
-            return self._handle_option_1(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_1)
 
         if action == ACTION_OPTION_2:
-            return self._handle_option_2(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_2)
 
         if action == ACTION_OPTION_3:
-            return self._handle_option_3(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_3)
 
         if action == ACTION_OPTION_4:
-            return self._handle_option_4(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_4)
 
         if action == ACTION_BACK_TO_MENU:
             return self._handle_back_to_menu(identity, channel, payload)
@@ -193,13 +198,13 @@ class AppService:
 
         matched = match_menu_button(raw_text, channel)
         if matched == "option_1":
-            return self._handle_option_1(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_1)
         if matched == "option_2":
-            return self._handle_option_2(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_2)
         if matched == "option_3":
-            return self._handle_option_3(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_3)
         if matched == "option_4":
-            return self._handle_option_4(identity, channel, payload)
+            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_4)
 
         self._touch_user(identity, channel, payload)
         return on_main_menu_reminder(channel)
@@ -233,12 +238,7 @@ class AppService:
         )
         if confirm:
             return on_telegram_name_confirm(user_name, channel)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_menu_visit",
-            channel=channel,
-            event_parameters=None,
-        )
+        self._log_main_menu_visit(identity, channel)
         return on_name_entered(user_name, channel)
 
     def _handle_name_confirmed(
@@ -253,12 +253,7 @@ class AppService:
 
         identity = self._resolve_identity(identity, channel)
         self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_menu_visit",
-            channel=channel,
-            event_parameters=None,
-        )
+        self._log_main_menu_visit(identity, channel)
         return on_name_entered(user_name, channel)
 
     def _handle_name_entered(
@@ -280,91 +275,22 @@ class AppService:
             confirm=False,
         )
 
-    def _handle_option_1(
+    def _handle_menu_option(
         self,
         identity: UserIdentity,
         channel: str,
         payload: dict[str, Any],
+        action: str,
     ) -> AppResponse:
+        start_event, screen = _OPTION_START_EVENTS[action]
         self._touch_user(identity, channel, payload)
         self.logger.log_event(
             identity=identity,
-            event_name="main_menu_click",
+            event_name=start_event,
             channel=channel,
-            event_parameters={"action": ACTION_OPTION_1},
+            event_parameters={"action": action},
         )
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_questionary_start",
-            channel=channel,
-            event_parameters=None,
-        )
-        return on_main_questionary_stub(channel)
-
-    def _handle_option_2(
-        self,
-        identity: UserIdentity,
-        channel: str,
-        payload: dict[str, Any],
-    ) -> AppResponse:
-        self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_menu_click",
-            channel=channel,
-            event_parameters={"action": ACTION_OPTION_2},
-        )
-        self.logger.log_event(
-            identity=identity,
-            event_name="secondary_questionary_start",
-            channel=channel,
-            event_parameters=None,
-        )
-        return on_secondary_questionary_stub(channel)
-
-    def _handle_option_3(
-        self,
-        identity: UserIdentity,
-        channel: str,
-        payload: dict[str, Any],
-    ) -> AppResponse:
-        self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_menu_click",
-            channel=channel,
-            event_parameters={"action": ACTION_OPTION_3},
-        )
-        self.logger.log_event(
-            identity=identity,
-            event_name="find_counry_start",
-            channel=channel,
-            event_parameters=None,
-        )
-        # TODO: проверять заполненность основной анкеты в БД.
-        return on_find_country_locked(channel)
-
-    def _handle_option_4(
-        self,
-        identity: UserIdentity,
-        channel: str,
-        payload: dict[str, Any],
-    ) -> AppResponse:
-        self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_menu_click",
-            channel=channel,
-            event_parameters={"action": ACTION_OPTION_4},
-        )
-        self.logger.log_event(
-            identity=identity,
-            event_name="find_own_place_start",
-            channel=channel,
-            event_parameters=None,
-        )
-        # TODO: проверять заполненность основной анкеты в БД.
-        return on_find_own_place_locked(channel)
+        return on_feature_stub(channel, screen=screen)
 
     def _handle_back_to_menu(
         self,
@@ -373,12 +299,8 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_menu_visit",
-            channel=channel,
-            event_parameters=None,
-        )
+        self._log_main_menu_click(identity, channel)
+        self._log_main_menu_visit(identity, channel)
         user_name = str(payload.get("user_name", "")).strip()
         if user_name:
             return on_name_entered(user_name, channel)
