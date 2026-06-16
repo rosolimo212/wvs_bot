@@ -1,0 +1,196 @@
+{
+  "_description": "Тексты диалогов WVS. Пустая строка в console/telegram/browser — берётся default.",
+  "messages": [
+    {
+      "id": 1,
+      "name": "start_ask_name",
+      "when": "Первый визит: streamlit/console, или Telegram без @username.",
+      "default": "Как вас зовут?",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 2,
+      "name": "empty_name",
+      "when": "Пользователь отправил пустое имя.",
+      "default": "Имя не может быть пустым. Как вас зовут?",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 3,
+      "name": "main_menu_greeting",
+      "when": "После регистрации или повторного визита зарегистрированного пользователя.",
+      "default": "Приятно познакомиться, {user_name}!\n\nВыберите действие:",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 4,
+      "name": "telegram_name_confirm",
+      "when": "Telegram: /start при наличии @username.",
+      "default": "Будем обращаться к вам как «{display}».\n\nЕсли хотите другое имя — нажмите «Изменить имя» или напишите его.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 5,
+      "name": "change_name_prompt",
+      "when": "Telegram: пользователь нажал «Изменить имя».",
+      "default": "Как к вам обращаться?",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 6,
+      "name": "main_menu_reminder",
+      "when": "Главное меню: ввод не распознан как пункт меню.",
+      "default": "Выберите пункт из главного меню.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 7,
+      "name": "main_questionary_stub",
+      "when": "Скелет: основная анкета ещё не перенесена в новое ядро.",
+      "default": "Основная анкета (13 вопросов) скоро будет здесь.\n\nПока используйте legacy-версию или дождитесь следующей итерации.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 8,
+      "name": "secondary_questionary_stub",
+      "when": "Скелет: дополнительная анкета ещё не перенесена.",
+      "default": "Дополнительная анкета скоро будет здесь.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 9,
+      "name": "find_country_locked",
+      "when": "Пункт 3 недоступен до заполнения основной анкеты.",
+      "default": "Для начала нужно заполнить основную анкету.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 10,
+      "name": "find_own_place_locked",
+      "when": "Пункт 4 недоступен до заполнения основной анкеты.",
+      "default": "Для начала нужно заполнить основную анкету.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 11,
+      "name": "browser_page_title",
+      "when": "Заголовок вкладки Streamlit.",
+      "default": "Ценности WVS",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 12,
+      "name": "browser_title",
+      "when": "Заголовок страницы Streamlit.",
+      "default": "Ценности WVS",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 13,
+      "name": "browser_name_label",
+      "when": "Подпись поля имени на старте.",
+      "default": "Ваше имя",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 14,
+      "name": "browser_btn_continue",
+      "when": "Кнопка продолжения на старте.",
+      "default": "Продолжить",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    }
+  ],
+  "buttons": [
+    {
+      "id": 1,
+      "name": "menu_option_1",
+      "when": "Главное меню: основная анкета.",
+      "default": "Заполнить основную анкету",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 2,
+      "name": "menu_option_2",
+      "when": "Главное меню: дополнительная анкета.",
+      "default": "Заполнить дополнительную анкету",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 3,
+      "name": "menu_option_3",
+      "when": "Главное меню: найти страну.",
+      "default": "Найти страну, близкую вам по ценностям",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 4,
+      "name": "menu_option_4",
+      "when": "Главное меню: место в социуме.",
+      "default": "Понять своё место в социуме",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 5,
+      "name": "back_to_menu",
+      "when": "Возврат в главное меню.",
+      "default": "В главное меню",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 6,
+      "name": "confirm_name",
+      "when": "Telegram: подтверждение имени.",
+      "default": "Да, всё верно",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 7,
+      "name": "change_name",
+      "when": "Telegram: смена имени.",
+      "default": "Изменить имя",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    }
+  ]
+}

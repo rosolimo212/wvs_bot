@@ -1,0 +1,21 @@
+# Copy to `config.yaml` and fill secrets.
+
+app:
+  # streamlit | telegram | console
+  interface: streamlit
+  logging_enabled: true
+
+logging:
+  engine: postgres
+  host: localhost
+  port: 5432
+  database: communication
+  user: roman
+  password: YOUR_PASSWORD_HERE
+  schema: wvs
+
+telegram:
+  token: YOUR_TOKEN_HERE
+
+paths:
+  questions_file: questions.json

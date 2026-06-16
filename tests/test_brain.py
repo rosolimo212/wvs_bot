@@ -1,0 +1,22 @@
+from __future__ import annotations
+
+from core.brain import match_menu_button, on_name_entered, on_start
+from core.models import Screen
+
+
+def test_on_start_screen() -> None:
+    response = on_start("streamlit")
+    assert response.screen == Screen.START
+    assert "зовут" in response.text.casefold()
+
+
+def test_on_name_entered_has_four_menu_buttons() -> None:
+    response = on_name_entered("Анна", "streamlit")
+    assert response.screen == Screen.MAIN_MENU
+    assert len(response.buttons) == 4
+
+
+def test_match_menu_button_option_1() -> None:
+    response = on_name_entered("Анна", "streamlit")
+    matched = match_menu_button(response.buttons[0], "streamlit")
+    assert matched == "option_1"
