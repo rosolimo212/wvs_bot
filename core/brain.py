@@ -8,6 +8,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from core.questionnaire.loader import question_input_mode
+
 from core.messages import (
     BACK_TO_MENU_BUTTON,
     CHANGE_NAME_BUTTON,
@@ -16,7 +18,6 @@ from core.messages import (
     back_to_menu_button,
     change_name_button,
     confirm_name_button,
-    custom_answer_button,
     menu_buttons,
     message,
     return_later_button,
@@ -128,8 +129,8 @@ def on_main_question_show(
     channel: str | None = None,
 ) -> AppResponse:
     time_est = estimate_minutes(remaining)
-    custom_label = custom_answer_button(channel)
     return_later_label = return_later_button(channel)
+    input_mode = question_input_mode(question)
     return AppResponse(
         text=message(
             "main_question_prompt",
@@ -139,12 +140,12 @@ def on_main_question_show(
             q_num=int(question["num"]),
             q_text=question["text"],
         ),
-        buttons=list(question["variants"]) + [custom_label, return_later_label],
+        buttons=list(question["variants"]) + [return_later_label],
         screen=Screen.MAIN_QUESTIONARY,
         meta={
             "qv_number": int(question["num"]),
             "qv_id": question["id"],
-            "custom_answer_label": custom_label,
+            "input_mode": input_mode,
             "return_later_label": return_later_label,
         },
     )

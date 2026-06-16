@@ -125,30 +125,49 @@ def run_streamlit(config: dict[str, Any]) -> None:
     elif screen == Screen.MAIN_QUESTIONARY.value:
         meta = state.get("meta", {})
         buttons = state.get("buttons", [])
-        custom_label = meta.get("custom_answer_label", button("custom_answer", "streamlit"))
         return_later_label = meta.get("return_later_label", button("return_later", "streamlit"))
         qv_number = meta.get("qv_number", 0)
-
-        selected = st.radio(
-            "Выберите ответ",
-            buttons,
-            key=f"main_q_{qv_number}",
-            label_visibility="collapsed",
-        )
+        input_mode = meta.get("input_mode", "choice")
+        choice_buttons = [b for b in buttons if b != return_later_label]
 
         custom_text = ""
-        if selected == custom_label:
+        if input_mode == "text":
             custom_text = st.text_input(
-                "Введите свой ответ",
-                key=f"main_custom_{qv_number}",
+                "Введите ответ",
+                key=f"main_text_{qv_number}",
                 placeholder="Введите ответ...",
+                label_visibility="collapsed",
+            )
+            if choice_buttons:
+                selected = st.radio(
+                    "Или выберите вариант",
+                    choice_buttons,
+                    key=f"main_q_{qv_number}",
+                    label_visibility="collapsed",
+                )
+            else:
+                selected = ""
+        else:
+            selected = st.radio(
+                "Выберите ответ",
+                choice_buttons,
+                key=f"main_q_{qv_number}",
                 label_visibility="collapsed",
             )
 
         col1, col2 = st.columns([1, 4])
         with col1:
             if st.button(message("browser_btn_submit", "streamlit"), key=f"main_submit_{qv_number}"):
-                answer = custom_text.strip() if selected == custom_label else selected
+                if input_mode == "text":
+                    if custom_text.strip():
+                        answer = custom_text.strip()
+                        selected_value = ""
+                    else:
+                        answer = selected
+                        selected_value = selected
+                else:
+                    answer = selected
+                    selected_value = selected
                 response = service.handle_action(
                     identity,
                     "streamlit",
@@ -157,7 +176,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
                         **_registered_payload(state),
                         **build_payload(screen=screen),
                         "answer": answer,
-                        "selected": selected,
+                        "selected": selected_value,
                     },
                 )
                 apply_response(state, response)

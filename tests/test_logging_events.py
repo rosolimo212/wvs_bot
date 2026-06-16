@@ -11,9 +11,11 @@ class RecordingLogger(NoopLogger):
     def __init__(self) -> None:
         super().__init__()
         self.events: list[str] = []
+        self.event_parameters: list[dict] = []
 
     def log_event(self, identity, event_name, channel, event_parameters=None, timestamp=None):
         self.events.append(event_name)
+        self.event_parameters.append(event_parameters or {})
 
 
 def _service(logger: RecordingLogger) -> AppService:
@@ -82,3 +84,9 @@ def test_main_questionary_logs_question_and_answer() -> None:
         },
     )
     assert "answer_sent" in logger.events
+    answer_events = [
+        params
+        for name, params in zip(logger.events, logger.event_parameters, strict=False)
+        if name == "answer_sent"
+    ]
+    assert answer_events[-1]["answer"] == first_variant

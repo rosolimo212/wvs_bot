@@ -77,6 +77,19 @@ def test_main_questionary_resume_after_answer() -> None:
     )
     assert response.screen == Screen.MAIN_QUESTIONARY
     assert "Вопрос 2" in response.text
+    assert button("custom_answer", "streamlit") not in response.buttons
+
+
+def test_text_question_uses_input_mode_text() -> None:
+    service = _service()
+    q8 = service._main_questions[7]
+    from core.brain import on_main_question_show
+    from core.questionnaire.loader import question_input_mode
+
+    assert question_input_mode(q8) == "text"
+    shown = on_main_question_show(q8, remaining=6, channel="streamlit")
+    assert shown.meta["input_mode"] == "text"
+    assert button("custom_answer", "streamlit") not in shown.buttons
 
 
 def test_option_3_locked_until_complete() -> None:

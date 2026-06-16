@@ -26,7 +26,8 @@ from core.brain import (
     on_start,
     on_telegram_name_confirm,
 )
-from core.messages import back_to_menu_button, change_name_button, confirm_name_button, custom_answer_button
+from core.messages import back_to_menu_button, change_name_button, confirm_name_button
+from core.questionnaire.loader import question_input_mode
 from core.logging.base import EventLogger
 from core.models import (
     ACTION_BACK_TO_MENU,
@@ -433,13 +434,16 @@ class AppService:
         question = self._main_questions[next_index]
         selected = str(payload.get("selected", "")).strip()
         answer = str(payload.get("answer", "")).strip()
-        custom_label = custom_answer_button(channel)
+        input_mode = question_input_mode(question)
 
-        if selected == custom_label:
-            if not answer:
+        if input_mode == "text":
+            if selected in question["variants"]:
+                final_answer = selected
+            elif answer:
+                final_answer = answer
+            else:
                 response = on_main_answer_empty(channel)
                 return self._restore_current_question(response, question, next_index, total, channel)
-            final_answer = answer
         elif selected in question["variants"]:
             final_answer = selected
         else:
@@ -455,6 +459,7 @@ class AppService:
             event_parameters={
                 "qv_number": int(question["num"]),
                 "qv_id": question["id"],
+                "answer": final_answer,
             },
         )
         return self._show_main_question(identity, channel, payload)

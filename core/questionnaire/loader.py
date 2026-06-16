@@ -25,3 +25,16 @@ def load_questions(path: str | Path) -> dict[str, Any]:
 
 def get_main_questions(questions_data: dict[str, Any]) -> list[dict[str, Any]]:
     return list(questions_data["main_questions"])
+
+
+def question_input_mode(question: dict[str, Any]) -> str:
+    """
+    Режим ввода ответа по структуре вопроса в questions.json.
+
+    choice — только варианты из JSON.
+    text — нужен свободный ввод (например, Q17: один вариант «Не знаю»).
+    """
+    variants = list(question.get("variants", []))
+    if len(variants) == 1 and str(variants[0]).strip().startswith("-1"):
+        return "text"
+    return "choice"
