@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from core.analytics.indices import compute_main_indices
 from core.brain import (
     is_back_to_menu,
     is_return_later,
@@ -23,6 +24,8 @@ from core.brain import (
     on_main_question_show,
     on_main_questionary_complete,
     on_name_entered,
+    on_secondary_question_show,
+    on_secondary_questionary_complete,
     on_start,
     on_telegram_name_confirm,
 )
@@ -40,19 +43,14 @@ from core.models import (
     ACTION_OPTION_2,
     ACTION_OPTION_3,
     ACTION_OPTION_4,
+    ACTION_SECONDARY_ANSWER,
+    ACTION_SECONDARY_RETURN_LATER,
     AppResponse,
     Screen,
     UserIdentity,
 )
 from core.questionnaire.base import MainAnswerStore
-from core.questionnaire.loader import get_main_questions, load_questions
-
-_OPTION_START_EVENTS: dict[str, tuple[str, Screen]] = {
-    ACTION_OPTION_1: ("main_questionary_start", Screen.MAIN_QUESTIONARY),
-    ACTION_OPTION_2: ("secondary_questionary_start", Screen.SECONDARY_QUESTIONARY),
-    ACTION_OPTION_3: ("find_counry_start", Screen.FIND_COUNTRY),
-    ACTION_OPTION_4: ("find_own_place_start", Screen.FIND_OWN_PLACE),
-}
+from core.questionnaire.loader import get_main_questions, get_secondary_questions, load_questions
 
 
 class AppService:
@@ -64,13 +62,16 @@ class AppService:
         config: dict[str, Any],
         *,
         answer_store: MainAnswerStore | None = None,
+        secondary_answer_store: MainAnswerStore | None = None,
         questions_data: dict[str, Any] | None = None,
     ) -> None:
         self.logger = logger
         self.config = config
         self._answer_store = answer_store
+        self._secondary_answer_store = secondary_answer_store
         self._questions_data = questions_data or self._load_questions_data()
         self._main_questions = get_main_questions(self._questions_data)
+        self._secondary_questions = get_secondary_questions(self._questions_data)
 
     def _load_questions_data(self) -> dict[str, Any]:
         questions_path = self.config.get("paths", {}).get("questions_file", "questions.json")
@@ -83,8 +84,20 @@ class AppService:
             raise RuntimeError("MainAnswerStore не инициализирован")
         return self._answer_store
 
+    @property
+    def secondary_answer_store(self) -> MainAnswerStore:
+        if self._secondary_answer_store is None:
+            raise RuntimeError("SecondaryAnswerStore не инициализирован")
+        return self._secondary_answer_store
+
     def is_main_questionary_complete(self, identity: UserIdentity) -> bool:
         return self.answer_store.is_complete(identity.user_id, len(self._main_questions))
+
+    def is_secondary_questionary_complete(self, identity: UserIdentity) -> bool:
+        return self.secondary_answer_store.is_complete(
+            identity.user_id,
+            len(self._secondary_questions),
+        )
 
     def _resolve_identity(
         self, identity: UserIdentity, channel: str
@@ -195,7 +208,7 @@ class AppService:
             return self._handle_option_1(identity, channel, payload)
 
         if action == ACTION_OPTION_2:
-            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_2)
+            return self._handle_option_2(identity, channel, payload)
 
         if action == ACTION_OPTION_3:
             return self._handle_option_3(identity, channel, payload)
@@ -208,6 +221,12 @@ class AppService:
 
         if action == ACTION_MAIN_RETURN_LATER:
             return self._handle_main_return_later(identity, channel, payload)
+
+        if action == ACTION_SECONDARY_ANSWER:
+            return self._handle_secondary_answer(identity, channel, payload)
+
+        if action == ACTION_SECONDARY_RETURN_LATER:
+            return self._handle_secondary_return_later(identity, channel, payload)
 
         if action == ACTION_BACK_TO_MENU:
             return self._handle_back_to_menu(identity, channel, payload)
@@ -245,6 +264,10 @@ class AppService:
             if is_return_later(raw_text, channel):
                 return self._handle_main_return_later(identity, channel, payload)
 
+        if screen == Screen.SECONDARY_QUESTIONARY.value or screen == Screen.SECONDARY_QUESTIONARY:
+            if is_return_later(raw_text, channel):
+                return self._handle_secondary_return_later(identity, channel, payload)
+
         if is_back_to_menu(raw_text, channel):
             return self._handle_back_to_menu(identity, channel, payload)
 
@@ -252,7 +275,7 @@ class AppService:
         if matched == "option_1":
             return self._handle_option_1(identity, channel, payload)
         if matched == "option_2":
-            return self._handle_menu_option(identity, channel, payload, ACTION_OPTION_2)
+            return self._handle_option_2(identity, channel, payload)
         if matched == "option_3":
             return self._handle_option_3(identity, channel, payload)
         if matched == "option_4":
@@ -342,22 +365,20 @@ class AppService:
         )
         return self._show_main_question(identity, channel, payload)
 
-    def _handle_menu_option(
+    def _handle_option_2(
         self,
         identity: UserIdentity,
         channel: str,
         payload: dict[str, Any],
-        action: str,
     ) -> AppResponse:
-        start_event, screen = _OPTION_START_EVENTS[action]
         self._touch_user(identity, channel, payload)
         self.logger.log_event(
             identity=identity,
-            event_name=start_event,
+            event_name="secondary_questionary_start",
             channel=channel,
-            event_parameters={"action": action},
+            event_parameters=None,
         )
-        return on_feature_stub(channel, screen=screen)
+        return self._show_secondary_question(identity, channel, payload, show_intro=True)
 
     def _handle_option_3(
         self,
@@ -490,11 +511,140 @@ class AppService:
         channel: str,
         payload: dict[str, Any],
     ) -> AppResponse:
-        user_name = str(payload.get("user_name", "")).strip()
         self._log_main_menu_visit(identity, channel)
+        logging_config = self.config.get("logging") if self.config.get("app", {}).get("logging_enabled") else None
+        indices = compute_main_indices(
+            self.answer_store,
+            identity.user_id,
+            logging_config=logging_config,
+        )
+        if indices is None:
+            rv, sv = 0, 0
+        else:
+            rv, sv = indices
+        return on_main_questionary_complete(rv=rv, sv=sv, channel=channel)
+
+    def _show_secondary_question(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+        *,
+        show_intro: bool = False,
+    ) -> AppResponse:
+        total = len(self._secondary_questions)
+        next_index = self.secondary_answer_store.get_next_question_index(identity.user_id, total)
+        if next_index is None:
+            return self._complete_secondary_questionary(identity, channel, payload)
+
+        question = self._secondary_questions[next_index]
+        remaining = total - next_index
+        self.logger.log_event(
+            identity=identity,
+            event_name="question_show",
+            channel=channel,
+            event_parameters={
+                "qv_number": int(question["num"]),
+                "qv_id": question["id"],
+                "questionary": "secondary",
+            },
+        )
+        return on_secondary_question_show(
+            question,
+            remaining=remaining,
+            channel=channel,
+            show_intro=show_intro,
+        )
+
+    def _handle_secondary_answer(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+    ) -> AppResponse:
+        identity = self._resolve_identity(identity, channel)
+        self._touch_user(identity, channel, payload)
+
+        total = len(self._secondary_questions)
+        next_index = self.secondary_answer_store.get_next_question_index(identity.user_id, total)
+        if next_index is None:
+            return self._complete_secondary_questionary(identity, channel, payload)
+
+        question = self._secondary_questions[next_index]
+        selected = str(payload.get("selected", "")).strip()
+        answer = str(payload.get("answer", "")).strip()
+        input_mode = question_input_mode(question)
+
+        if input_mode == "text":
+            if selected in question["variants"]:
+                final_answer = selected
+            elif answer:
+                final_answer = answer
+            else:
+                response = on_main_answer_empty(channel)
+                return self._restore_secondary_question(response, question, next_index, total, channel)
+        elif selected in question["variants"]:
+            final_answer = selected
+        else:
+            response = on_main_answer_invalid(channel)
+            return self._restore_secondary_question(response, question, next_index, total, channel)
+
+        user_name = str(payload.get("user_name", "")).strip() or identity.user_id
+        self.secondary_answer_store.save_answer(identity.user_id, user_name, question, final_answer)
+        self.logger.log_event(
+            identity=identity,
+            event_name="answer_sent",
+            channel=channel,
+            event_parameters={
+                "qv_number": int(question["num"]),
+                "qv_id": question["id"],
+                "answer": final_answer,
+                "questionary": "secondary",
+            },
+        )
+        return self._show_secondary_question(identity, channel, payload)
+
+    def _restore_secondary_question(
+        self,
+        response: AppResponse,
+        question: dict[str, Any],
+        next_index: int,
+        total: int,
+        channel: str,
+    ) -> AppResponse:
+        question_response = on_secondary_question_show(
+            question,
+            remaining=total - next_index,
+            channel=channel,
+        )
+        return AppResponse(
+            text=f"{response.text}\n\n{question_response.text}",
+            buttons=question_response.buttons,
+            screen=question_response.screen,
+            meta=question_response.meta,
+        )
+
+    def _complete_secondary_questionary(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+    ) -> AppResponse:
+        self._log_main_menu_visit(identity, channel)
+        return on_secondary_questionary_complete(channel)
+
+    def _handle_secondary_return_later(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+    ) -> AppResponse:
+        self._touch_user(identity, channel, payload)
+        self._log_main_menu_visit(identity, channel)
+        user_name = str(payload.get("user_name", "")).strip()
         if user_name:
-            return on_main_questionary_complete(user_name, channel)
-        return on_main_questionary_complete("", channel)
+            return on_name_entered(user_name, channel, **self._menu_meta(identity))
+        return on_main_menu_reminder(channel, **self._menu_meta(identity))
 
     def _handle_main_return_later(
         self,

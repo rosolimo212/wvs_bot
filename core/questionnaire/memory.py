@@ -8,7 +8,7 @@ from typing import Any
 from core.questionnaire.base import MainAnswerStore
 
 
-class MemoryMainAnswerStore(MainAnswerStore):
+class MemoryAnswerStore(MainAnswerStore):
     def __init__(self) -> None:
         self._answers: dict[str, list[dict[str, Any]]] = {}
 
@@ -26,6 +26,10 @@ class MemoryMainAnswerStore(MainAnswerStore):
 
     def is_complete(self, user_id: str, total_questions: int) -> bool:
         return self.get_next_question_index(user_id, total_questions) is None
+
+    def list_answers(self, user_id: str) -> list[dict[str, Any]]:
+        rows = self._answers.get(user_id, [])
+        return sorted(rows, key=lambda row: int(row["qv_number"]))
 
     def save_answer(
         self,
@@ -48,3 +52,7 @@ class MemoryMainAnswerStore(MainAnswerStore):
             }
         )
         self._answers[user_id] = rows
+
+
+MemoryMainAnswerStore = MemoryAnswerStore
+MemorySecondaryAnswerStore = MemoryAnswerStore

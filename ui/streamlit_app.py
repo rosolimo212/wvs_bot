@@ -13,7 +13,14 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.messages import button, message
-from core.models import ACTION_MAIN_ANSWER, ACTION_MAIN_RETURN_LATER, ACTION_NAME_ENTERED, Screen
+from core.models import (
+    ACTION_MAIN_ANSWER,
+    ACTION_MAIN_RETURN_LATER,
+    ACTION_NAME_ENTERED,
+    ACTION_SECONDARY_ANSWER,
+    ACTION_SECONDARY_RETURN_LATER,
+    Screen,
+)
 from ui.base import build_app_service
 from ui.helpers import (
     apply_response,
@@ -87,6 +94,90 @@ def _handle_user_input(service, state, text: str) -> None:
     apply_response(state, response)
 
 
+def _render_questionnaire_screen(
+    service,
+    state,
+    identity,
+    *,
+    screen: str,
+    answer_action: str,
+    return_action: str,
+    key_prefix: str,
+    on_answer,
+) -> None:
+    import streamlit as st
+
+    meta = state.get("meta", {})
+    buttons = state.get("buttons", [])
+    return_later_label = meta.get("return_later_label", button("return_later", "streamlit"))
+    qv_number = meta.get("qv_number", 0)
+    input_mode = meta.get("input_mode", "choice")
+    choice_buttons = [b for b in buttons if b != return_later_label]
+
+    custom_text = ""
+    if input_mode == "text":
+        custom_text = st.text_input(
+            "Введите ответ",
+            key=f"{key_prefix}_text_{qv_number}",
+            placeholder="Введите ответ...",
+            label_visibility="collapsed",
+        )
+        if choice_buttons:
+            selected = st.radio(
+                "Или выберите вариант",
+                choice_buttons,
+                key=f"{key_prefix}_q_{qv_number}",
+                label_visibility="collapsed",
+            )
+        else:
+            selected = ""
+    else:
+        selected = st.radio(
+            "Выберите ответ",
+            choice_buttons,
+            key=f"{key_prefix}_q_{qv_number}",
+            label_visibility="collapsed",
+        )
+
+    col1, col2 = st.columns([1, 4])
+    with col1:
+        if st.button(message("browser_btn_submit", "streamlit"), key=f"{key_prefix}_submit_{qv_number}"):
+            if input_mode == "text":
+                if custom_text.strip():
+                    answer = custom_text.strip()
+                    selected_value = ""
+                else:
+                    answer = selected
+                    selected_value = selected
+            else:
+                answer = selected
+                selected_value = selected
+            response = service.handle_action(
+                identity,
+                "streamlit",
+                answer_action,
+                {
+                    **_registered_payload(state),
+                    **build_payload(screen=screen),
+                    "answer": answer,
+                    "selected": selected_value,
+                },
+            )
+            apply_response(state, response)
+            on_answer(identity)
+            st.rerun()
+    with col2:
+        if st.button(return_later_label, key=f"{key_prefix}_return_{qv_number}"):
+            response = service.handle_action(
+                identity,
+                "streamlit",
+                return_action,
+                _registered_payload(state),
+            )
+            apply_response(state, response)
+            st.rerun()
+
+
 def run_streamlit(config: dict[str, Any]) -> None:
     import streamlit as st
 
@@ -123,75 +214,30 @@ def run_streamlit(config: dict[str, Any]) -> None:
             st.rerun()
 
     elif screen == Screen.MAIN_QUESTIONARY.value:
-        meta = state.get("meta", {})
-        buttons = state.get("buttons", [])
-        return_later_label = meta.get("return_later_label", button("return_later", "streamlit"))
-        qv_number = meta.get("qv_number", 0)
-        input_mode = meta.get("input_mode", "choice")
-        choice_buttons = [b for b in buttons if b != return_later_label]
+        _render_questionnaire_screen(
+            service,
+            state,
+            identity,
+            screen=screen,
+            answer_action=ACTION_MAIN_ANSWER,
+            return_action=ACTION_MAIN_RETURN_LATER,
+            key_prefix="main",
+            on_answer=lambda ident: state.update(
+                {"main_questionary_complete": service.is_main_questionary_complete(ident)}
+            ),
+        )
 
-        custom_text = ""
-        if input_mode == "text":
-            custom_text = st.text_input(
-                "Введите ответ",
-                key=f"main_text_{qv_number}",
-                placeholder="Введите ответ...",
-                label_visibility="collapsed",
-            )
-            if choice_buttons:
-                selected = st.radio(
-                    "Или выберите вариант",
-                    choice_buttons,
-                    key=f"main_q_{qv_number}",
-                    label_visibility="collapsed",
-                )
-            else:
-                selected = ""
-        else:
-            selected = st.radio(
-                "Выберите ответ",
-                choice_buttons,
-                key=f"main_q_{qv_number}",
-                label_visibility="collapsed",
-            )
-
-        col1, col2 = st.columns([1, 4])
-        with col1:
-            if st.button(message("browser_btn_submit", "streamlit"), key=f"main_submit_{qv_number}"):
-                if input_mode == "text":
-                    if custom_text.strip():
-                        answer = custom_text.strip()
-                        selected_value = ""
-                    else:
-                        answer = selected
-                        selected_value = selected
-                else:
-                    answer = selected
-                    selected_value = selected
-                response = service.handle_action(
-                    identity,
-                    "streamlit",
-                    ACTION_MAIN_ANSWER,
-                    {
-                        **_registered_payload(state),
-                        **build_payload(screen=screen),
-                        "answer": answer,
-                        "selected": selected_value,
-                    },
-                )
-                apply_response(state, response)
-                state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
-                st.rerun()
-        with col2:
-            if st.button(return_later_label, key=f"main_return_{qv_number}"):
-                response = service.handle_action(
-                    identity,
-                    "streamlit",
-                    ACTION_MAIN_RETURN_LATER,
-                    _registered_payload(state),
-                )
-                apply_response(state, response)
-                st.rerun()
+    elif screen == Screen.SECONDARY_QUESTIONARY.value:
+        _render_questionnaire_screen(
+            service,
+            state,
+            identity,
+            screen=screen,
+            answer_action=ACTION_SECONDARY_ANSWER,
+            return_action=ACTION_SECONDARY_RETURN_LATER,
+            key_prefix="secondary",
+            on_answer=lambda _ident: None,
+        )
 
     else:
         buttons = state.get("buttons", [])

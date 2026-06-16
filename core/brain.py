@@ -152,14 +152,66 @@ def on_main_question_show(
 
 
 def on_main_questionary_complete(
-    user_name: str,
+    *,
+    rv: int,
+    sv: int,
     channel: str | None = None,
 ) -> AppResponse:
+    intro = message("main_questionary_complete_intro", channel)
+    indices = message("main_questionary_indices", channel, rv=rv, sv=sv)
+    outro = message("main_questionary_complete_outro", channel)
     return AppResponse(
-        text=message("main_questionary_complete", channel),
+        text=f"{intro}\n\n{indices}\n\n{outro}",
         buttons=menu_buttons(channel),
         screen=Screen.MAIN_MENU,
         meta={"main_questionary_complete": True},
+    )
+
+
+def on_secondary_question_show(
+    question: dict[str, Any],
+    *,
+    remaining: int,
+    channel: str | None = None,
+    show_intro: bool = False,
+) -> AppResponse:
+    time_est = estimate_minutes(remaining)
+    return_later_label = return_later_button(channel)
+    input_mode = question_input_mode(question)
+    prompt = message(
+        "secondary_question_prompt",
+        channel,
+        remaining=remaining,
+        time=time_est,
+        q_num=int(question["num"]),
+        q_text=question["text"],
+    )
+    if show_intro:
+        intro = message(
+            "secondary_questionary_intro",
+            channel,
+            remaining=remaining,
+            time=time_est,
+        )
+        prompt = f"{intro}\n\n{prompt}"
+    return AppResponse(
+        text=prompt,
+        buttons=list(question["variants"]) + [return_later_label],
+        screen=Screen.SECONDARY_QUESTIONARY,
+        meta={
+            "qv_number": int(question["num"]),
+            "qv_id": question["id"],
+            "input_mode": input_mode,
+            "return_later_label": return_later_label,
+        },
+    )
+
+
+def on_secondary_questionary_complete(channel: str | None = None) -> AppResponse:
+    return AppResponse(
+        text=message("secondary_questionary_complete", channel),
+        buttons=menu_buttons(channel),
+        screen=Screen.MAIN_MENU,
     )
 
 
@@ -219,6 +271,8 @@ __all__ = [
     "on_main_question_show",
     "on_main_questionary_complete",
     "on_name_entered",
+    "on_secondary_question_show",
+    "on_secondary_questionary_complete",
     "on_start",
     "on_telegram_name_confirm",
 ]

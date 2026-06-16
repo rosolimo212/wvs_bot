@@ -3,9 +3,9 @@ from __future__ import annotations
 from core.app import AppService
 from core.logging.noop import NoopLogger
 from core.messages import back_to_menu_button, button, message, return_later_button
-from core.models import ACTION_MAIN_ANSWER, ACTION_OPTION_1, Screen
+from core.models import ACTION_MAIN_ANSWER, ACTION_OPTION_1, ACTION_OPTION_2, ACTION_SECONDARY_ANSWER, Screen
 from core.questionnaire.loader import load_questions
-from core.questionnaire.memory import MemoryMainAnswerStore
+from core.questionnaire.memory import MemoryMainAnswerStore, MemorySecondaryAnswerStore
 
 
 def _service() -> AppService:
@@ -19,6 +19,7 @@ def _service() -> AppService:
             "paths": {"questions_file": "questions.json"},
         },
         answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
         questions_data=root_questions,
     )
 
@@ -143,3 +144,68 @@ def test_return_later_goes_to_main_menu() -> None:
         {"user_name": "Роман"},
     )
     assert response.screen == Screen.MAIN_MENU
+
+
+def test_main_complete_shows_indices() -> None:
+    service = _service()
+    identity = service.logger.ensure_user("streamlit", "ext-complete")
+    _register(service, identity)
+    service.handle_action(identity, "streamlit", ACTION_OPTION_1, {"user_name": "Роман"})
+
+    for question in service._main_questions:
+        variant = question["variants"][0]
+        service.handle_action(
+            identity,
+            "streamlit",
+            ACTION_MAIN_ANSWER,
+            {
+                "user_name": "Роман",
+                "selected": variant,
+                "answer": variant,
+            },
+        )
+
+    response = service.handle_action(
+        identity,
+        "streamlit",
+        ACTION_OPTION_1,
+        {"user_name": "Роман"},
+    )
+    assert response.screen == Screen.MAIN_MENU
+    assert message("main_questionary_complete_intro", "streamlit") in response.text
+    assert "традиционных/секулярных" in response.text
+    assert message("main_questionary_complete_outro", "streamlit") in response.text
+
+
+def test_option_2_starts_secondary_questionary() -> None:
+    service = _service()
+    identity = service.logger.ensure_user("streamlit", "ext-secondary")
+    _register(service, identity)
+    response = service.handle_action(
+        identity,
+        "streamlit",
+        ACTION_OPTION_2,
+        {"user_name": "Роман"},
+    )
+    assert response.screen == Screen.SECONDARY_QUESTIONARY
+    assert "дополнительную анкету" in response.text
+    assert service._secondary_questions[0]["text"] in response.text
+
+
+def test_secondary_questionary_resume_after_answer() -> None:
+    service = _service()
+    identity = service.logger.ensure_user("streamlit", "ext-secondary-2")
+    _register(service, identity)
+    service.handle_action(identity, "streamlit", ACTION_OPTION_2, {"user_name": "Роман"})
+    response = service.handle_action(
+        identity,
+        "streamlit",
+        ACTION_SECONDARY_ANSWER,
+        {
+            "user_name": "Роман",
+            "selected": "",
+            "answer": "1990",
+        },
+    )
+    assert response.screen == Screen.SECONDARY_QUESTIONARY
+    assert "Вопрос 2" in response.text

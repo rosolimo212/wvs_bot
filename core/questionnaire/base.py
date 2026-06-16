@@ -31,3 +31,7 @@ class MainAnswerStore(ABC):
         answer_text: str,
     ) -> None:
         """Сохраняет один ответ пользователя."""
+
+    @abstractmethod
+    def list_answers(self, user_id: str) -> list[dict[str, Any]]:
+        """Все ответы пользователя, отсортированные по qv_number."""

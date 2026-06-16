@@ -4,7 +4,7 @@ from core.app import AppService
 from core.logging.noop import NoopLogger
 from core.messages import back_to_menu_button, button
 from core.models import ACTION_OPTION_2
-from core.questionnaire.memory import MemoryMainAnswerStore
+from core.questionnaire.memory import MemoryMainAnswerStore, MemorySecondaryAnswerStore
 
 
 class RecordingLogger(NoopLogger):
@@ -28,6 +28,7 @@ def _service(logger: RecordingLogger) -> AppService:
             "paths": {"questions_file": "questions.json"},
         },
         answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
     )
 
 

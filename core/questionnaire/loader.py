@@ -27,6 +27,10 @@ def get_main_questions(questions_data: dict[str, Any]) -> list[dict[str, Any]]:
     return [_normalize_question(question) for question in questions_data["main_questions"]]
 
 
+def get_secondary_questions(questions_data: dict[str, Any]) -> list[dict[str, Any]]:
+    return [_normalize_question(question) for question in questions_data.get("secondary_questions", [])]
+
+
 def normalize_question_text(text: str) -> str:
     """В исходном JSON перенос строки иногда записан как /n вместо \\n."""
     return text.replace("/n", "\n")
@@ -47,6 +51,9 @@ def question_input_mode(question: dict[str, Any]) -> str:
     text — нужен свободный ввод (например, Q17: один вариант «Не знаю»).
     """
     variants = list(question.get("variants", []))
+    text = str(question.get("text", "")).casefold()
     if len(variants) == 1 and str(variants[0]).strip().startswith("-1"):
+        return "text"
+    if "напечатайте" in text or "напечатай" in text:
         return "text"
     return "choice"

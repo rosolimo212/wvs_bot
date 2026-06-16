@@ -51,6 +51,8 @@ ACTION_OPTION_4 = "option_4"
 ACTION_BACK_TO_MENU = "back_to_menu"
 ACTION_MAIN_ANSWER = "main_answer"
 ACTION_MAIN_RETURN_LATER = "main_return_later"
+ACTION_SECONDARY_ANSWER = "secondary_answer"
+ACTION_SECONDARY_RETURN_LATER = "secondary_return_later"
 
 
 @dataclass

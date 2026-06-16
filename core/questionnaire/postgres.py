@@ -1,5 +1,5 @@
 # coding: utf-8
-"""Postgres-хранилище ответов основной анкеты (wvs.user_answers)."""
+"""Postgres-хранилище ответов анкеты."""
 
 from __future__ import annotations
 
@@ -9,19 +9,19 @@ from core.db import postgres_connection
 from core.questionnaire.base import MainAnswerStore
 
 
-class PostgresMainAnswerStore(MainAnswerStore):
-    def __init__(self, logging_config: dict[str, Any]) -> None:
+class PostgresAnswerStore(MainAnswerStore):
+    def __init__(self, logging_config: dict[str, Any], *, table: str) -> None:
         self._cfg = logging_config
         self._schema = logging_config["schema"]
+        self._table = f"{self._schema}.{table}"
 
     def _max_qv_number(self, user_id: str) -> int:
-        table = f"{self._schema}.user_answers"
         with postgres_connection(self._cfg) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
                     SELECT COALESCE(MAX(qv_number), 0)::int AS num
-                    FROM {table}
+                    FROM {self._table}
                     WHERE user_id = %s
                     """,
                     (user_id,),
@@ -40,6 +40,31 @@ class PostgresMainAnswerStore(MainAnswerStore):
     def is_complete(self, user_id: str, total_questions: int) -> bool:
         return self.get_next_question_index(user_id, total_questions) is None
 
+    def list_answers(self, user_id: str) -> list[dict[str, Any]]:
+        with postgres_connection(self._cfg) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT user_id, user_name, qv_id, qv_number, qv_text, answer_text
+                    FROM {self._table}
+                    WHERE user_id = %s
+                    ORDER BY qv_number
+                    """,
+                    (user_id,),
+                )
+                rows = cur.fetchall()
+        return [
+            {
+                "user_id": row[0],
+                "user_name": row[1],
+                "qv_id": row[2],
+                "qv_number": row[3],
+                "qv_text": row[4],
+                "answer_text": row[5],
+            }
+            for row in rows
+        ]
+
     def save_answer(
         self,
         user_id: str,
@@ -47,13 +72,12 @@ class PostgresMainAnswerStore(MainAnswerStore):
         question: dict[str, Any],
         answer_text: str,
     ) -> None:
-        table = f"{self._schema}.user_answers"
         qv_number = int(question["num"])
         with postgres_connection(self._cfg) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
-                    INSERT INTO {table}
+                    INSERT INTO {self._table}
                         (user_id, user_name, qv_id, qv_number, qv_text, answer_text)
                     VALUES
                         (%s, %s, %s, %s, %s, %s)
@@ -73,3 +97,13 @@ class PostgresMainAnswerStore(MainAnswerStore):
                         answer_text,
                     ),
                 )
+
+
+class PostgresMainAnswerStore(PostgresAnswerStore):
+    def __init__(self, logging_config: dict[str, Any]) -> None:
+        super().__init__(logging_config, table="user_answers")
+
+
+class PostgresSecondaryAnswerStore(PostgresAnswerStore):
+    def __init__(self, logging_config: dict[str, Any]) -> None:
+        super().__init__(logging_config, table="user_reviews")
