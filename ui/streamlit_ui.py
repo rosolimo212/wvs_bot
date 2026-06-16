@@ -16,7 +16,10 @@ MAIN_MENU_BUTTON_COUNT = 4
 START_MESSAGE_NAMES = ("browser_name_label", "browser_btn_continue")
 HEADER_MESSAGE_NAMES = ("browser_page_title", "browser_title")
 
-SCREENS_WITH_DEDICATED_BRANCH = (Screen.START.value,)
+SCREENS_WITH_DEDICATED_BRANCH = (
+    Screen.START.value,
+    Screen.MAIN_QUESTIONARY.value,
+)
 
 FORBIDDEN_STREAMLIT_PATTERNS = (
     "@st.cache_resource",

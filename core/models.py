@@ -49,6 +49,8 @@ ACTION_OPTION_2 = "option_2"
 ACTION_OPTION_3 = "option_3"
 ACTION_OPTION_4 = "option_4"
 ACTION_BACK_TO_MENU = "back_to_menu"
+ACTION_MAIN_ANSWER = "main_answer"
+ACTION_MAIN_RETURN_LATER = "main_return_later"
 
 
 @dataclass
@@ -92,3 +94,4 @@ class AppResponse:
     buttons: list[str] = field(default_factory=list)
     screen: Screen = Screen.START
     finished: bool = False
+    meta: dict[str, Any] = field(default_factory=dict)

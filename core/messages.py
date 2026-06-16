@@ -97,7 +97,17 @@ def change_name_button(channel: str | None = None) -> str:
     return button("change_name", channel)
 
 
+def custom_answer_button(channel: str | None = None) -> str:
+    return button("custom_answer", channel)
+
+
+def return_later_button(channel: str | None = None) -> str:
+    return button("return_later", channel)
+
+
 MENU_BUTTONS = menu_buttons()
 BACK_TO_MENU_BUTTON = back_to_menu_button()
 CONFIRM_NAME_BUTTON = confirm_name_button()
 CHANGE_NAME_BUTTON = change_name_button()
+CUSTOM_ANSWER_BUTTON = custom_answer_button()
+RETURN_LATER_BUTTON = return_later_button()

@@ -25,6 +25,7 @@ from core.db import postgres_connection
 
 SQL_FILES = (
     "sql/001_init.sql",
+    "sql/002_user_answers.sql",
     "sql/003_unique_channel_external.sql",
 )
 

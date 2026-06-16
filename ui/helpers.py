@@ -54,6 +54,10 @@ def apply_response(
     state["last_text"] = response.text
     state["screen"] = response.screen.value
     state["buttons"] = list(response.buttons)
+    state["meta"] = dict(response.meta)
+
+    if "main_questionary_complete" in response.meta:
+        state["main_questionary_complete"] = bool(response.meta["main_questionary_complete"])
 
     if user_name is not None:
         state["user_name"] = user_name

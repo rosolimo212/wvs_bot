@@ -13,7 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from core.messages import button, message
-from core.models import ACTION_NAME_ENTERED, Screen
+from core.models import ACTION_MAIN_ANSWER, ACTION_MAIN_RETURN_LATER, ACTION_NAME_ENTERED, Screen
 from ui.base import build_app_service
 from ui.helpers import (
     apply_response,
@@ -25,11 +25,6 @@ from ui.streamlit_cookies import persist_external_id_cookie, resolve_external_us
 
 
 def _init_session(service, state) -> None:
-    """
-    Первый прогон session_state.
-
-    Экран после регистрации задаёт handle_start + postgres, не cookie.
-    """
     if state.get("initialized"):
         return
     state["initialized"] = True
@@ -51,6 +46,7 @@ def _init_session(service, state) -> None:
                 reg_date = str(reg)
 
     apply_response(state, response, user_name=reg_name, registration_date=reg_date)
+    state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
 
 
 def _registered_payload(state) -> dict[str, Any]:
@@ -76,12 +72,7 @@ def _handle_user_input(service, state, text: str) -> None:
         if response.screen == Screen.MAIN_MENU:
             user_name = text.strip()
             reg_date = datetime.now().isoformat()
-        apply_response(
-            state,
-            response,
-            user_name=user_name,
-            registration_date=reg_date,
-        )
+        apply_response(state, response, user_name=user_name, registration_date=reg_date)
         return
 
     response = service.handle_action(
@@ -112,6 +103,8 @@ def run_streamlit(config: dict[str, Any]) -> None:
     if not state.get("initialized"):
         _init_session(service, state)
 
+    identity = get_identity(state)
+
     st.title(message("browser_title", "streamlit"))
     st.caption(
         f"user_id: {state.user_id[:12]}… | "
@@ -129,11 +122,64 @@ def run_streamlit(config: dict[str, Any]) -> None:
             _handle_user_input(service, state, name)
             st.rerun()
 
+    elif screen == Screen.MAIN_QUESTIONARY.value:
+        meta = state.get("meta", {})
+        buttons = state.get("buttons", [])
+        custom_label = meta.get("custom_answer_label", button("custom_answer", "streamlit"))
+        return_later_label = meta.get("return_later_label", button("return_later", "streamlit"))
+        qv_number = meta.get("qv_number", 0)
+
+        selected = st.radio(
+            "Выберите ответ",
+            buttons,
+            key=f"main_q_{qv_number}",
+            label_visibility="collapsed",
+        )
+
+        custom_text = ""
+        if selected == custom_label:
+            custom_text = st.text_input(
+                "Введите свой ответ",
+                key=f"main_custom_{qv_number}",
+                placeholder="Введите ответ...",
+                label_visibility="collapsed",
+            )
+
+        col1, col2 = st.columns([1, 4])
+        with col1:
+            if st.button(message("browser_btn_submit", "streamlit"), key=f"main_submit_{qv_number}"):
+                answer = custom_text.strip() if selected == custom_label else selected
+                response = service.handle_action(
+                    identity,
+                    "streamlit",
+                    ACTION_MAIN_ANSWER,
+                    {
+                        **_registered_payload(state),
+                        **build_payload(screen=screen),
+                        "answer": answer,
+                        "selected": selected,
+                    },
+                )
+                apply_response(state, response)
+                state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
+                st.rerun()
+        with col2:
+            if st.button(return_later_label, key=f"main_return_{qv_number}"):
+                response = service.handle_action(
+                    identity,
+                    "streamlit",
+                    ACTION_MAIN_RETURN_LATER,
+                    _registered_payload(state),
+                )
+                apply_response(state, response)
+                st.rerun()
+
     else:
         buttons = state.get("buttons", [])
         for idx, label in enumerate(buttons):
             if st.button(label, key=f"btn_menu_{idx}"):
                 _handle_user_input(service, state, label)
+                state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
                 st.rerun()
 
     if state.get("external_user_id"):
