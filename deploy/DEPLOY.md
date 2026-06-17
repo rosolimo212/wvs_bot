@@ -20,7 +20,7 @@ dig +short streamlit.worldvaluessurveybot.info
 ## 2. Код и зависимости на VM
 
 ```bash
-cd /root/wvs_bot
+cd /root/python/wvs_bot
 git pull
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -78,5 +78,5 @@ certbot --nginx -d streamlit.worldvaluessurveybot.info
 ## 6. Обновление
 
 ```bash
-cd /root/wvs_bot && git pull && systemctl restart wvs-streamlit
+cd /root/python/wvs_bot && git pull && systemctl restart wvs-streamlit
 ```
