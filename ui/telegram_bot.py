@@ -40,6 +40,7 @@ from core.models import (
 from ui.base import build_app_service
 from ui.find_country_delivery import deliver_find_country_telegram
 from ui.helpers import apply_response, build_payload, store_identity
+from ui.telegram_session import build_telegram_bot
 from ui.interactive_client import (
     enrich_find_country_console,
     handle_name_entered,
@@ -120,11 +121,10 @@ async def _send_response(
 
 
 async def run_telegram(config: dict[str, Any]) -> None:
-    token = config["telegram"]["token"]
     service = build_app_service(config)
     channel = "telegram"
 
-    bot = Bot(token=token)
+    bot = build_telegram_bot(config)
     dp = Dispatcher(storage=MemoryStorage())
 
     async def _reply(message: Message, state: FSMContext) -> None:
@@ -270,4 +270,7 @@ async def run_telegram(config: dict[str, Any]) -> None:
         await state.set_state(_state_for_screen(Screen(data["screen"])))
         await _reply(message, state)
 
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()

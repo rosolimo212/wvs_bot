@@ -1,0 +1,10 @@
+# Продакшен: слушать все интерфейсы (не только localhost).
+# Порт 8502 — на VM 8501 занят template-streamlit.service.
+
+[server]
+address = "0.0.0.0"
+port = 8502
+headless = true
+
+[browser]
+gatherUsageStats = false

@@ -18,6 +18,11 @@ logging:
 
 telegram:
   token: YOUR_TOKEN_HERE
+  # Если с сервера api.telegram.org недоступен (таймаут на RU VPS) — HTTP/SOCKS прокси:
+  # proxy_url: "http://127.0.0.1:1080"
+  # proxy_url: "socks5://user:pass@host:1080"
+  proxy_url: ""
+  request_timeout_sec: 60
 
 paths:
   questions_file: questions.json
