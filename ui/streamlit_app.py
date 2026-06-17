@@ -200,12 +200,13 @@ def run_streamlit(config: dict[str, Any]) -> None:
     identity = get_identity(state)
 
     st.title(message("browser_title", "streamlit"))
-    st.caption(
-        f"user_id: {state.user_id[:12]}… | "
-        f"internal: {state.internal_user_id} | "
-        f"external: {state.external_user_id[:8]}… | "
-        f"экран: {state.screen}"
-    )
+    if config.get("app", {}).get("debug_ui", False):
+        st.caption(
+            f"user_id: {state.user_id[:12]}… | "
+            f"internal: {state.internal_user_id} | "
+            f"external: {state.external_user_id[:8]}… | "
+            f"экран: {state.screen}"
+        )
     st.markdown(state.get("last_text", ""))
 
     screen = state.get("screen", Screen.START.value)

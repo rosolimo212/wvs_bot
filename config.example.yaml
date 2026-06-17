@@ -4,6 +4,8 @@ app:
   # streamlit | telegram | console
   interface: streamlit
   logging_enabled: true
+  # true — показывать user_id и экран в Streamlit (только для отладки)
+  debug_ui: false
 
 logging:
   engine: postgres
