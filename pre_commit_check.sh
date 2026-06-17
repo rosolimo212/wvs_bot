@@ -82,5 +82,7 @@ echo "Тайминги загрузки карты стран (тестовые 
 python3 scripts/country_plot_timing_check.py
 echo ""
 python3 -m pytest tests/ -q
+echo ""
+python3 business_checks.py
 
 echo "pre_commit_check: OK"

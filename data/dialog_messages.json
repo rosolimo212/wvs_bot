@@ -279,6 +279,69 @@
       "console": "",
       "telegram": "",
       "browser": ""
+    },
+    {
+      "id": 40,
+      "name": "console_banner",
+      "when": "Старт консольного клиента.",
+      "default": "=== WVS Bot (консоль) ===",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 41,
+      "name": "console_menu_header",
+      "when": "Список доступных действий в консоли.",
+      "default": "Выберите пункт (номер или текст):",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 42,
+      "name": "console_invalid_choice",
+      "when": "Неверный ввод в консоли.",
+      "default": "Неверный выбор. Повторите.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 43,
+      "name": "console_goodbye",
+      "when": "Выход из консольного клиента.",
+      "default": "До свидания!",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 44,
+      "name": "console_question_text_hint",
+      "when": "Вопрос с вводом текста в консоли.",
+      "default": "Можно ввести номер варианта или напечатать свой ответ.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 45,
+      "name": "console_plot_skipped",
+      "when": "График страны недоступен в консоли.",
+      "default": "(График положения стран доступен в веб-версии Streamlit.)",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 46,
+      "name": "telegram_plot_skipped",
+      "when": "График страны недоступен в Telegram.",
+      "default": "(График положения стран доступен в веб-версии Streamlit.)",
+      "console": "",
+      "telegram": "",
+      "browser": ""
     }
   ],
   "buttons": [
