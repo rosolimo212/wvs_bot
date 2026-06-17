@@ -6,6 +6,8 @@ app:
   logging_enabled: true
   # true — показывать user_id и экран в Streamlit (только для отладки)
   debug_ui: false
+  # На прод-VM: IP или DNS для вывода в консоли при streamlit run (см. .streamlit/config.toml [browser] serverAddress)
+  # streamlit_public_host: "45.132.18.2"
 
 logging:
   engine: postgres

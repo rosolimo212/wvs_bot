@@ -1,0 +1,16 @@
+[Unit]
+Description=WVS Bot Streamlit UI
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/wvs_bot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/root/wvs_bot/scripts/run_streamlit.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
