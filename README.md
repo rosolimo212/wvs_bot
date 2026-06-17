@@ -1,89 +1,176 @@
 # wvs_bot
 
-World Values Survey bot — a short questionnaire (13 main + 14 secondary questions) for Inglehart–Welzel value indices.
+**Interactive survey bot for the [World Values Survey](https://www.worldvaluessurvey.org/) (WVS) framework.**  
+Participants answer a short questionnaire and get immediate feedback: value indices, nearest country, and their place relative to a large reference sample.
 
 ---
 
-## Architecture
+## What problem does this solve?
 
-```mermaid
-flowchart TB
-    subgraph UI["UI clients"]
-        ST["ui/streamlit_app.py\n(graph + cookies)"]
-        TG["ui/telegram_bot.py\n(aiogram 3)"]
-        CN["ui/console_app.py\n(no plot)"]
-    end
+Social science needs both **data collection** and **instant feedback** for respondents. This project:
 
-    subgraph Shared["ui/"]
-        BASE["base.py — build_app_service"]
-        HELP["helpers.py — identity, payload"]
-        IC["interactive_client.py\nconsole + telegram shared"]
-        PLOT["country_plot.py — matplotlib"]
-    end
+- collects answers to a WVS-style questionnaire;
+- stores them in PostgreSQL for research;
+- returns quick, personalized results (Inglehart–Welzel-style indices and comparisons).
 
-    subgraph Core["core/"]
-        APP["app.py — AppService orchestrator"]
-        BRAIN["brain.py — pure scenario logic"]
-        MSG["messages.py — dialog_messages.json"]
-        ID["identity.py — user_id hash"]
-        CFG["config.py — YAML"]
-    end
+It is **not** the official WVS platform. It reuses WVS concepts and reference data for education and pilot studies.
 
-    subgraph Data["Persistence"]
-        Q["questionnaire/\npostgres | memory"]
-        LOG["logging/\npostgres | noop"]
-        DB["db_schema.py — auto DDL"]
-    end
+---
 
-    subgraph Analytics["core/analytics/"]
-        IDX["indices.py — RV/SV"]
-        CTRY["country.py — nearest country"]
-        POS["position.py — rank in sample"]
-        SQL["sql.py — SQL file adapter"]
-    end
+## Research background
 
-    ST --> BASE
-    TG --> BASE
-    CN --> BASE
-    ST --> PLOT
-    TG --> IC
-    CN --> IC
-    BASE --> APP
-    HELP --> APP
-    IC --> APP
-    APP --> BRAIN
-    APP --> MSG
-    APP --> Q
-    APP --> LOG
-    APP --> Analytics
-    LOG --> DB
-    Q --> DB
-    Analytics --> SQL
-    SQL --> PG[("PostgreSQL\ncommunication DB\nschemas wvs + tl")]
-    LOG --> PG
-    Q --> PG
+| Topic | Link |
+|--------|------|
+| World Values Survey (official site) | https://www.worldvaluessurvey.org/ |
+| WVS documentation & waves | https://www.worldvaluessurvey.org/WVSEVdocumentation.jsp |
+| Inglehart–Welzel cultural map (method) | https://www.worldvaluessurvey.org/WVSOnline.jsp?WVS=IGUANAWELZEL |
+| Inglehart & Welzel, *Foreign Affairs* (overview) | https://www.foreignaffairs.com/articles/2010-03-01/how-development-leads-democracy |
+
+**Two dimensions used in this bot:**
+
+- **RV** — Traditional vs secular-rational values  
+- **SV** — Survival vs self-expression values  
+
+Indices are computed in Python from 13 main questions (`core/analytics/indices.py`), aligned with the legacy SQL logic now archived in `old/count_ind.sql`.
+
+---
+
+## What the user can do
+
+After entering a name, the main menu offers four actions:
+
+| # | Feature | Description |
+|---|---------|-------------|
+| 1 | Main questionnaire | 13 questions → `user_answers`; can pause and resume |
+| 2 | Secondary questionnaire | 14 questions about the respondent → `user_reviews` |
+| 3 | Find a country | Nearest country by value indices + profile card (plot in Streamlit only) |
+| 4 | Your place in society | Rank vs WVS reference sample (`gen_sample`), optionally by age and gender |
+
+Items 3 and 4 are locked until the main questionnaire is complete.
+
+**Interfaces:** Streamlit (web, with chart), Telegram (aiogram), console (text only, no chart). Switch via `app.interface` in `config.yaml`.
+
+---
+
+## Quick start (developers)
+
+```bash
+cd /home/roman/python/wvs_bot
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp config.example.yaml config.yaml   # set logging.password, optional telegram.token
+
+python3 scripts/load_reference_data.py   # needs gen_sample.csv, country_data.csv in project root
+streamlit run ui/streamlit_app.py
+# or: python3 main.py
 ```
 
-### Request flow (one user step)
+**Tests:** `./pre_commit_check.sh` (pytest + business checks).
 
-1. UI reads input (button, text, Telegram message).
-2. UI builds `payload` via `ui/helpers.py` and calls `AppService.handle_action` or `handle_start`.
-3. `AppService` updates `users`, writes `events`, reads/writes answers, may call analytics SQL.
-4. `brain.py` returns `AppResponse` (text, buttons, screen, meta) — no I/O inside brain.
-5. UI renders response. Streamlit additionally draws the country plot when `meta.show_country_plot` is set.
+**Layout:** UI → `AppService` (`core/app.py`) → `brain` + PostgreSQL (`wvs` schema for users/events/answers, `tl` for reference tables). Details in `task.md`.
 
-### Branches
-
-| Branch | Environment |
-|--------|-------------|
-| `main` | Production (VM) |
-| `dev` | Local development |
-
-Database name is always **`communication`**; app data lives in schema **`wvs`**, reference WVS sample in **`tl`**.
+**Legacy code:** `old/` (previous monolithic Streamlit/Telegram bots).
 
 ---
 
-## Quick start
+# wvs_bot — описание на русском
+
+## О чём этот проект
+
+**wvs_bot** — инструмент для участия в опросе в духе [Всемирного исследования ценностей](https://www.worldvaluessurvey.org/) (World Values Survey, WVS).
+
+Человек отвечает на короткую анкету и сразу получает обратную связь: свои индексы ценностей, ближайшую по ценностям страну и место среди большой выборки респондентов. Параллельно ответы сохраняются в базе — их можно использовать в социологическом анализе.
+
+Это **не** официальный сайт WVS, а отдельный пилотный инструмент на основе их подхода и открытых данных.
+
+---
+
+## Зачем это нужно
+
+**Цель проекта** (из `task.md`): собирать социологические данные и давать участникам опроса быстрые, понятные ответы.
+
+**Задачи:**
+
+1. Провести респондента через анкету (основную и дополнительную) без потери прогресса.
+2. Закодировать ответы и посчитать индексы в духе карты Инглхарта–Вельцеля.
+3. Сравнить человека с агрегированной выборкой социологов (`gen_sample`) и со странами (`country_data`).
+4. Зафиксировать действия в логах (`users`, `events`) для последующего анализа.
+5. Дать один и тот же сценарий в вебе, Telegram и консоли.
+
+---
+
+## Научный контекст
+
+Исследование ценностей WVS — крупнейший международный опрос убеждений и установок; данные используются в политологии, социологии, демографии.
+
+Полезные ссылки:
+
+- [Официальный сайт WVS](https://www.worldvaluessurvey.org/)
+- [Документация и волны опроса](https://www.worldvaluessurvey.org/WVSEVdocumentation.jsp)
+- [Карта культур Инглхарта–Вельцеля (методика на сайте WVS)](https://www.worldvaluessurvey.org/WVSOnline.jsp?WVS=IGUANAWELZEL)
+- [Inglehart & Welzel — как развитие связано с демократией (*Foreign Affairs*)](https://www.foreignaffairs.com/articles/2010-03-01/how-development-leads-democracy)
+
+В боте используются **два измерения** (как на культурной карте):
+
+| Индекс | Ось | Смысл (упрощённо) |
+|--------|-----|-------------------|
+| **RV** | Традиционные ↔ секулярно-рациональные | религия, авторитет, семья vs индивидуализм, рациональность |
+| **SV** | Выживание ↔ самовыражение | материальная безопасность vs качество жизни, участие, толерантность |
+
+Индексы считаются в Python по 13 вопросам основной анкеты (`core/analytics/indices.py`). Старый SQL-вариант лежит в `old/count_ind.sql` только для справки.
+
+---
+
+## Что умеет бот (сценарий для пользователя)
+
+1. **Старт** — спрашивает имя (в Telegram может предложить `@username`).
+2. **Главное меню** — четыре пункта:
+
+| Пункт | Что происходит |
+|-------|----------------|
+| Основная анкета | 13 вопросов из `questions.json`; можно «Вернуться позже»; ответы в `wvs.user_answers` |
+| Дополнительная анкета | 14 вопросов о респонденте; ответы в `wvs.user_reviews` |
+| Найти страну | Ближайшая страна по RV/SV, текстовая карточка; **график только в Streamlit** |
+| Понять своё место в социуме | Процентили по RV/SV среди выборки; при наличии данных — по возрасту и полу+возрасту |
+
+Пункты «Найти страну» и «Понять своё место» **заблокированы**, пока не заполнена основная анкета.
+
+После завершения основной анкеты пользователь видит свои значения RV и SV.
+
+---
+
+## Как устроен код (кратко)
+
+```mermaid
+flowchart LR
+    subgraph clients [Интерфейсы]
+        S[Streamlit]
+        T[Telegram]
+        C[Консоль]
+    end
+    APP[AppService]
+    BRAIN[brain — логика экранов]
+    DB[(PostgreSQL)]
+
+    S --> APP
+    T --> APP
+    C --> APP
+    APP --> BRAIN
+    APP --> DB
+```
+
+- **Интерфейсы** (`ui/`) только показывают текст и кнопки.
+- **AppService** (`core/app.py`) — анкеты, логи, аналитика.
+- **brain** (`core/brain.py`) — чистая логика сценария, без базы и сети.
+- **База** `communication`: схема `wvs` (пользователи, события, ответы), схема `tl` (справочники `gen_sample`, `country_data`).
+
+Тексты диалогов — в `data/dialog_messages.json`, вопросы — в `questions.json`.
+
+Подробные требования к архитектуре и логированию — в [`task.md`](task.md).
+
+---
+
+## Запуск
 
 ```bash
 cd /home/roman/python/wvs_bot
@@ -92,184 +179,47 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 cp config.example.yaml config.yaml
-# set logging.password and optionally telegram.token
+# пароль postgres в logging.password; для Telegram — telegram.token
 
-# reference CSVs in project root (gitignored):
+# CSV в корне проекта (в git не попадают):
 python3 scripts/load_reference_data.py
 
-# default UI — Streamlit
+# веб-интерфейс
 streamlit run ui/streamlit_app.py
 
-# or set app.interface in config.yaml:
-python3 main.py   # streamlit | telegram | console
+# или один из трёх интерфейсов из config.yaml:
+python3 main.py
 ```
 
-### Configuration (`config.yaml`)
+В `config.yaml`:
 
 ```yaml
 app:
   interface: streamlit   # streamlit | telegram | console
   logging_enabled: true
-
-logging:
-  host: localhost
-  port: 5432
-  database: communication
-  user: roman
-  password: "..."
-  schema: wvs
-
-analytics:
-  reference_schema: tl
-
-telegram:
-  token: "..."
 ```
-
----
-
-## Modules
-
-| Path | Role |
-|------|------|
-| `core/app.py` | Single entry for business logic; logging, questionnaires, analytics |
-| `core/brain.py` | Screen texts and transitions (no DB/network) |
-| `core/questionnaire/` | Main answers → `user_answers`, secondary → `user_reviews` |
-| `core/analytics/indices.py` | RV/SV from answers (see below) |
-| `core/analytics/country.py` | Nearest country SQL |
-| `core/analytics/position.py` | User rank vs `gen_sample` |
-| `data/dialog_messages.json` | All user-visible strings |
-| `data/country_profiles.json` | Country cards after “Find country” |
-| `questions.json` | Main + secondary questions |
-| `business_checks.py` | Layer 2 business tests (`task.md`) |
-| `old/` | Legacy monolith code (not used) |
-
----
-
-## Why RV/SV are computed in Python (`indices.py`), not only in `count_ind.sql`
-
-The legacy bot ran a large SQL script (`count_ind.sql`, kept for reference) on every index request. The new code uses **`core/analytics/indices.py`** instead:
-
-1. **Same data, less round-trips** — answers are already loaded for the questionnaire; Python reuses `user_answers` without sending a 90-line SQL string to Postgres on each menu action.
-2. **Easier to test** — `tests/test_indices.py` checks edge cases (Q17 text, “Не знаю”, negative numbers) without a database fixture.
-3. **Explicit rules** — scoring rules for Q17 and numeric parsing live in one readable function; the SQL mixed parsing, CASE logic, and aggregation.
-4. **Schema flexibility** — `adapt_sql` rewrites `tl.` prefixes; Python store abstracts postgres vs in-memory tests.
-5. **Offline / noop logging** — indices work with `MemoryMainAnswerStore` in unit tests and `business_checks.py`.
-
-SQL files remain for **analytics that need the full sample** (`find_country.sql`, `count_pos.sql`, `age_strat.sql`, `gender_age_strat.sql`) where joining `gen_sample` in the database is appropriate.
-
----
-
-## Testing
-
-**Layer 1** — pytest (required for commit):
-
-```bash
-./pre_commit_check.sh
-```
-
-**Layer 2** — business scenario checks from `task.md`:
-
-```bash
-python3 business_checks.py
-```
-
-Included checks: menu buttons, event logging, user id collisions, special characters in names, full scenario latency &lt; 8 s, country plot timing report.
-
----
-
-## Logging events
-
-`start_screen_visit`, `registration`, `main_menu_visit`, `main_menu_click`, `main_questionary_start`, `secondary_questionary_start`, `question_show`, `answer_sent`, `find_counry_start`, `find_own_place_start`, `country_plot_loaded` (with timing fields in Streamlit).
-
----
-
-# wvs_bot (русский)
-
-Бот Всемирного исследования ценностей — короткая анкета (13 основных + 14 дополнительных вопросов) для индексов Инглхарта–Вельцеля.
-
----
-
-## Архитектура
-
-Схема та же, что в английской части выше. Кратко по слоям:
-
-```mermaid
-flowchart LR
-    UI[Интерфейсы\nStreamlit / Telegram / Консоль]
-    APP[AppService\ncore/app.py]
-    BRAIN[brain.py\nлогика без I/O]
-    DATA[(PostgreSQL\nwvs + tl)]
-
-    UI --> APP
-    APP --> BRAIN
-    APP --> DATA
-```
-
-- **Интерфейсы** только показывают текст и кнопки и передают ввод в `AppService`.
-- **Мозг** (`brain.py`) не ходит в БД и не знает про Telegram/Streamlit.
-- **AppService** пишет `users` и `events`, ведёт анкеты, вызывает аналитику.
-- **Консоль и Telegram** не рисуют график страны — только текст и карточка из JSON.
-- **Streamlit** дополнительно строит matplotlib-график и логирует тайминги `country_plot_loaded`.
-
-### Поток одного шага пользователя
-
-1. UI получает ввод.
-2. Формируется `payload`, вызывается `handle_start` / `handle_action`.
-3. Обновляется пользователь, пишется событие, при необходимости — ответ в анкету или SQL-аналитика.
-4. `brain` возвращает `AppResponse`.
-5. UI отображает ответ (в Streamlit при «Найти страну» — ещё график).
-
----
-
-## Быстрый старт
-
-```bash
-cd /home/roman/python/wvs_bot
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp config.example.yaml config.yaml
-
-python3 scripts/load_reference_data.py   # gen_sample.csv, country_data.csv в корне
-streamlit run ui/streamlit_app.py
-```
-
-Переключение интерфейса в `config.yaml` → `app.interface`: `streamlit`, `telegram`, `console`, либо `python3 main.py`.
-
----
-
-## Почему индексы RV/SV считаются в Python, а не в `count_ind.sql`
-
-В старом боте при каждом запросе выполнялся большой SQL (`count_ind.sql`, лежит в корне для справки). Сейчас расчёт в **`core/analytics/indices.py`**:
-
-1. **Меньше обращений к БД** — ответы уже есть в хранилище анкеты.
-2. **Проще тестировать** — граничные случаи Q17 и «Не знаю» в `tests/test_indices.py` без Postgres.
-3. **Правила на виду** — парсинг чисел и особые вопросы в одном месте, а не в длинном SQL.
-4. **Гибкость схем** — тот же код для postgres и memory-store в тестах.
-5. **Работа без БД** — индексы считаются в `business_checks` и unit-тестах.
-
-SQL-файлы остаются там, где нужна **большая выборка** (`gen_sample`): поиск страны, позиция в социуме.
 
 ---
 
 ## Тестирование
 
-| Слой | Команда | Содержание |
-|------|---------|------------|
-| 1 | `pytest tests/` | Модули, brain, app, логирование |
-| 2 | `python3 business_checks.py` | Сценарий, события, коллизии id, спецсимволы, лаг &lt; 8 с |
+| Слой | Команда | Что проверяет |
+|------|---------|----------------|
+| 1 | `pytest tests/` | модули, сценарии, индексы, логирование |
+| 2 | `python3 business_checks.py` | полный сценарий, события, id, спецсимволы, лаг &lt; 8 с |
 
-Полная проверка перед коммитом: `./pre_commit_check.sh`.
+Перед коммитом: `./pre_commit_check.sh`.
 
 ---
 
-## События логирования
+## События в логах
 
-См. `task.md`. Опечатка в имени события сохранена намеренно: `find_counry_start`.
+`start_screen_visit`, `registration`, `main_menu_visit`, `main_menu_click`, `main_questionary_start`, `secondary_questionary_start`, `question_show`, `answer_sent`, `find_counry_start`, `find_own_place_start`, `country_plot_loaded` (тайминги графика в Streamlit).
+
+Полный список и параметры — в [`task.md`](task.md).
 
 ---
 
 ## Устаревший код
 
-Файлы прежней монолитной версии — в каталоге [`old/`](old/README.md). Точка входа сейчас: `ui/streamlit_app.py`, `ui/console_app.py`, `ui/telegram_bot.py`, `main.py`.
+Первая монолитная версия (старый Streamlit и Telegram) — в каталоге [`old/`](old/README.md). Рабочие точки входа: `ui/streamlit_app.py`, `ui/console_app.py`, `ui/telegram_bot.py`, `main.py`.
