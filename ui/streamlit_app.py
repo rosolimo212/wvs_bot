@@ -238,7 +238,9 @@ def run_streamlit(config: dict[str, Any]) -> None:
 
                 profile_started = time.perf_counter()
                 country_code = str(meta.get("country_code", ""))
-                st.markdown(format_country_profile(country_code, "streamlit"))
+                profile_text = format_country_profile(country_code, "streamlit")
+                if profile_text.strip():
+                    st.markdown(profile_text)
                 country_plot_loaded_ms = int((time.perf_counter() - profile_started) * 1000)
 
                 total_ms = int((time.perf_counter() - total_started) * 1000)

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from unittest.mock import patch
 
+from core.analytics.country import NearestCountry
 from core.app import AppService
 from core.logging.noop import NoopLogger
 from core.messages import back_to_menu_button, button
-from core.models import ACTION_OPTION_2
+from core.models import ACTION_OPTION_2, ACTION_OPTION_3, ACTION_MAIN_ANSWER
 from core.questionnaire.memory import MemoryMainAnswerStore, MemorySecondaryAnswerStore
 
 
@@ -139,3 +141,47 @@ def test_country_plot_loaded_logs_timings() -> None:
         "country_plot_loaded_ms": 5,
         "total_ms": 115,
     }
+
+
+def test_find_country_start_logs_answer_text() -> None:
+    logger = RecordingLogger()
+    service = AppService(
+        logger,
+        {
+            "app": {"interface": "streamlit", "logging_enabled": True},
+            "logging": {"schema": "wvs"},
+            "telegram": {"token": ""},
+            "paths": {"questions_file": "questions.json"},
+            "analytics": {"reference_schema": "tl"},
+        },
+        answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
+    )
+    identity = logger.ensure_user("streamlit", "ext-find-country")
+
+    service.handle_action(identity, "streamlit", "name_entered", {"text": "Роман"})
+    payload = {"user_name": "Роман"}
+
+    for question in service._main_questions:
+        variant = question["variants"][0]
+        service.handle_action(
+            identity,
+            "streamlit",
+            ACTION_MAIN_ANSWER,
+            {**payload, "selected": variant, "answer": variant},
+        )
+
+    nearest = NearestCountry(
+        rv=10.0,
+        sv=12.0,
+        country_code="RUS",
+        country_rv=9.5,
+        country_sv=11.5,
+    )
+    with patch("core.app.find_nearest_country", return_value=nearest):
+        response = service.handle_action(identity, "streamlit", ACTION_OPTION_3, payload)
+
+    assert "find_counry_start" in logger.events
+    idx = len(logger.events) - 1 - logger.events[::-1].index("find_counry_start")
+    assert logger.event_parameters[idx]["answer"] == response.text
+    assert "RUS" in logger.event_parameters[idx]["answer"]

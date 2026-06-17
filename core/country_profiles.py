@@ -27,8 +27,13 @@ def format_country_profile(
     *,
     path: str | None = None,
 ) -> str:
+    """
+    Текст карточки страны для UI.
+
+    Если профиля нет — пустая строка (сообщение пользователю не показываем).
+    """
     profiles = load_country_profiles(path)
     profile = profiles.get(country_code.upper())
     if profile is None:
-        return message("country_profile_missing", channel, country_code=country_code)
+        return ""
     return message("country_profile_card", channel, **profile)

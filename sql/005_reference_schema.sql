@@ -49,7 +49,12 @@ CREATE TABLE IF NOT EXISTS tl.country_data (
     "region-code" INTEGER,
     "sub-region-code" INTEGER,
     "intermediate-region-code" DOUBLE PRECISION,
-    insert_time TIMESTAMP
+    insert_time TIMESTAMP,
+    full_name TEXT,
+    government_type TEXT,
+    gdp_per_capita_usd BIGINT,
+    population BIGINT,
+    flight_hours_from_london NUMERIC(5, 1)
 );
 
 CREATE INDEX IF NOT EXISTS idx_country_data_code ON tl.country_data (country_code);

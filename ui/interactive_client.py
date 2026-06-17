@@ -80,7 +80,8 @@ def enrich_find_country_without_plot(
 
     country_code = str(meta.get("country_code", ""))
     profile_text = format_country_profile(country_code, channel)
-    state["last_text"] = f"{state.get('last_text', '')}\n\n{profile_text}"
+    if profile_text.strip():
+        state["last_text"] = f"{state.get('last_text', '')}\n\n{profile_text}"
     state["country_profile_appended"] = True
 
     logging_config = config.get("logging") if config.get("app", {}).get("logging_enabled") else None

@@ -138,12 +138,18 @@ class AppService:
             event_parameters={"screen": from_screen},
         )
 
-    def _log_find_country_start(self, identity: UserIdentity, channel: str) -> None:
+    def _log_find_country_start(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        answer: str,
+    ) -> None:
         self.logger.log_event(
             identity=identity,
             event_name="find_counry_start",
             channel=channel,
-            event_parameters=None,
+            event_parameters={"answer": answer},
         )
 
     def _log_find_own_place_start(self, identity: UserIdentity, channel: str) -> None:
@@ -440,8 +446,9 @@ class AppService:
 
         logging_config = self._logging_config()
         if logging_config is None:
-            self._log_find_country_start(identity, channel)
-            return on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
+            response = on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
+            self._log_find_country_start(identity, channel, answer=response.text)
+            return response
 
         try:
             result = find_nearest_country(
@@ -452,11 +459,11 @@ class AppService:
         except Exception:
             result = None
         if result is None:
-            self._log_find_country_start(identity, channel)
-            return on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
+            response = on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
+            self._log_find_country_start(identity, channel, answer=response.text)
+            return response
 
-        self._log_find_country_start(identity, channel)
-        return on_find_country(
+        response = on_find_country(
             rv=result.rv,
             sv=result.sv,
             country_code=result.country_code,
@@ -464,6 +471,8 @@ class AppService:
             country_sv=result.country_sv,
             channel=channel,
         )
+        self._log_find_country_start(identity, channel, answer=response.text)
+        return response
 
     def _handle_option_4(
         self,

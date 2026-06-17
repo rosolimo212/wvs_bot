@@ -13,3 +13,7 @@ def test_format_country_profile_renders_card() -> None:
     text = format_country_profile("RUS", "streamlit")
     assert "Россия" in text
     assert "Форма правления" in text
+
+
+def test_format_country_profile_missing_is_silent() -> None:
+    assert format_country_profile("ZZZ", "streamlit") == ""

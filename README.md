@@ -60,7 +60,7 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp config.example.yaml config.yaml   # set logging.password, optional telegram.token
 
-python3 scripts/load_reference_data.py   # needs gen_sample.csv, country_data.csv in project root
+python3 scripts/setup_reference_tables.py   # needs gen_sample.csv, country_data.csv in project root
 streamlit run ui/streamlit_app.py
 # or: python3 main.py
 ```
@@ -182,7 +182,7 @@ cp config.example.yaml config.yaml
 # пароль postgres в logging.password; для Telegram — telegram.token
 
 # CSV в корне проекта (в git не попадают):
-python3 scripts/load_reference_data.py
+python3 scripts/setup_reference_tables.py
 
 # веб-интерфейс
 streamlit run ui/streamlit_app.py
