@@ -77,6 +77,10 @@ check_file_sizes() {
 }
 
 check_file_sizes
+echo ""
+echo "Тайминги загрузки карты стран (тестовые данные)..."
+python3 scripts/country_plot_timing_check.py
+echo ""
 python3 -m pytest tests/ -q
 
 echo "pre_commit_check: OK"

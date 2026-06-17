@@ -127,18 +127,18 @@
 
 В таблице gen_sample - данные из последней волны опроса социалогов, приведённые к виду, в котором можно сравнивать с ответами пользователей. 
 
-event_name для логирования: 
-- start_screen_visit
-- registration
-- main_menu_visit
-- main_questionary_start
-- secondary_questionary_start	
-- question_show
-- answer_sent
-- find_counry_start
-- find_own_place_start
-- country_plot_loaded
-- main_menu_click
+event_name для логирования:
+- start_screen_visit — экран представления (новый пользователь)
+- registration — user_name записан в базу
+- main_menu_visit — пользователь на главном меню (4 пункта), без параметров
+- main_menu_click — клик «В главное меню», параметр screen (экран-источник)
+- main_questionary_start — первый экран основной анкеты, без параметров
+- secondary_questionary_start — первый экран доп. анкеты, без параметров
+- question_show — показ вопроса: questionary, qv_number, qv_id
+- answer_sent — ответ записан: questionary, qv_number, qv_id, qv_text, answer
+- find_counry_start — экран «Найти страну»
+- find_own_place_start — экран «Понять своё место в социуме»
+- country_plot_loaded — карточка страны после графика; тайминги sql_ms, processing_ms, render_ms, country_plot_loaded_ms, total_ms
 
 
 Тестирование логики:

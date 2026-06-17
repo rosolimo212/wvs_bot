@@ -201,9 +201,18 @@
     },
     {
       "id": 30,
-      "name": "country_plot_joke",
-      "when": "Короткое сообщение после отрисовки графика стран.",
-      "default": "Пакуем чемоданы?",
+      "name": "country_profile_card",
+      "when": "Карточка страны после графика на экране «Найти страну».",
+      "default": "**{full_name}**\n\nФорма правления: {government_type}\nВВП на душу населения: ${gdp_per_capita_usd:,}\nНаселение: {population:,}\nПерелёт из Лондона: ~{flight_hours_from_london} ч",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 31,
+      "name": "country_profile_missing",
+      "when": "Нет профиля страны в country_profiles.json.",
+      "default": "Для страны {country_code} пока нет расширенного профиля.",
       "console": "",
       "telegram": "",
       "browser": ""

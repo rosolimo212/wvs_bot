@@ -33,7 +33,7 @@ from core.brain import (
     on_start,
     on_telegram_name_confirm,
 )
-from core.messages import back_to_menu_button, change_name_button, confirm_name_button, message
+from core.messages import change_name_button, confirm_name_button, message
 from core.questionnaire.loader import question_input_mode
 from core.logging.base import EventLogger
 from core.models import (
@@ -108,6 +108,14 @@ class AppService:
     ) -> UserIdentity:
         return self.logger.ensure_user(channel, identity.external_user_id)
 
+    def _screen_from_payload(self, payload: dict[str, Any]) -> str:
+        screen = payload.get("screen")
+        if isinstance(screen, Screen):
+            return screen.value
+        if screen:
+            return str(screen)
+        return Screen.MAIN_MENU.value
+
     def _log_main_menu_visit(self, identity: UserIdentity, channel: str) -> None:
         self.logger.log_event(
             identity=identity,
@@ -116,12 +124,34 @@ class AppService:
             event_parameters=None,
         )
 
-    def _log_main_menu_click(self, identity: UserIdentity, channel: str) -> None:
+    def _log_main_menu_click(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        from_screen: str,
+    ) -> None:
         self.logger.log_event(
             identity=identity,
             event_name="main_menu_click",
             channel=channel,
-            event_parameters={"button": back_to_menu_button(channel)},
+            event_parameters={"screen": from_screen},
+        )
+
+    def _log_find_country_start(self, identity: UserIdentity, channel: str) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="find_counry_start",
+            channel=channel,
+            event_parameters=None,
+        )
+
+    def _log_find_own_place_start(self, identity: UserIdentity, channel: str) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="find_own_place_start",
+            channel=channel,
+            event_parameters=None,
         )
 
     def log_country_plot_loaded(
@@ -129,14 +159,22 @@ class AppService:
         identity: UserIdentity,
         channel: str,
         *,
-        trigger: str,
+        sql_ms: int,
+        processing_ms: int,
+        render_ms: int,
+        country_plot_loaded_ms: int,
+        total_ms: int,
     ) -> None:
         self.logger.log_event(
             identity=identity,
             event_name="country_plot_loaded",
             channel=channel,
             event_parameters={
-                "trigger": trigger,
+                "sql_ms": sql_ms,
+                "processing_ms": processing_ms,
+                "render_ms": render_ms,
+                "country_plot_loaded_ms": country_plot_loaded_ms,
+                "total_ms": total_ms,
             },
         )
 
@@ -165,12 +203,6 @@ class AppService:
                     "user_name": existing_name,
                     "registration_date": (profile or {}).get("registration_date"),
                 },
-            )
-            self.logger.log_event(
-                identity=identity,
-                event_name="start_screen_visit",
-                channel=channel,
-                event_parameters=None,
             )
             self._log_main_menu_visit(identity, channel)
             return on_name_entered(existing_name, channel, **menu_meta)
@@ -377,12 +409,6 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="main_questionary_start",
-            channel=channel,
-            event_parameters=None,
-        )
         return self._show_main_question(identity, channel, payload)
 
     def _handle_option_2(
@@ -392,12 +418,6 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="secondary_questionary_start",
-            channel=channel,
-            event_parameters=None,
-        )
         return self._show_secondary_question(identity, channel, payload, show_intro=True)
 
     def _logging_config(self) -> dict[str, Any] | None:
@@ -415,17 +435,12 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="find_counry_start",
-            channel=channel,
-            event_parameters=None,
-        )
         if not self.is_main_questionary_complete(identity):
             return on_feature_locked(channel, **self._menu_meta(identity))
 
         logging_config = self._logging_config()
         if logging_config is None:
+            self._log_find_country_start(identity, channel)
             return on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
 
         try:
@@ -437,8 +452,10 @@ class AppService:
         except Exception:
             result = None
         if result is None:
+            self._log_find_country_start(identity, channel)
             return on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
 
+        self._log_find_country_start(identity, channel)
         return on_find_country(
             rv=result.rv,
             sv=result.sv,
@@ -455,17 +472,12 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
-        self.logger.log_event(
-            identity=identity,
-            event_name="find_own_place_start",
-            channel=channel,
-            event_parameters=None,
-        )
         if not self.is_main_questionary_complete(identity):
             return on_feature_locked(channel, **self._menu_meta(identity))
 
         logging_config = self._logging_config()
         if logging_config is None:
+            self._log_find_own_place_start(identity, channel)
             return on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
 
         try:
@@ -477,6 +489,7 @@ class AppService:
         except Exception:
             global_pos = None
         if global_pos is None:
+            self._log_find_own_place_start(identity, channel)
             return on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
 
         parts = [
@@ -528,6 +541,7 @@ class AppService:
         elif age_pos is None:
             parts.append(message("find_own_place_secondary_hint", channel))
 
+        self._log_find_own_place_start(identity, channel)
         return on_find_own_place("\n\n".join(parts), channel)
 
     def _show_main_question(
@@ -543,11 +557,19 @@ class AppService:
 
         question = self._main_questions[next_index]
         remaining = total - next_index
+        if next_index == 0:
+            self.logger.log_event(
+                identity=identity,
+                event_name="main_questionary_start",
+                channel=channel,
+                event_parameters=None,
+            )
         self.logger.log_event(
             identity=identity,
             event_name="question_show",
             channel=channel,
             event_parameters={
+                "questionary": "main",
                 "qv_number": int(question["num"]),
                 "qv_id": question["id"],
             },
@@ -594,8 +616,10 @@ class AppService:
             event_name="answer_sent",
             channel=channel,
             event_parameters={
+                "questionary": "main",
                 "qv_number": int(question["num"]),
                 "qv_id": question["id"],
+                "qv_text": question["text"],
                 "answer": final_answer,
             },
         )
@@ -655,14 +679,21 @@ class AppService:
 
         question = self._secondary_questions[next_index]
         remaining = total - next_index
+        if next_index == 0:
+            self.logger.log_event(
+                identity=identity,
+                event_name="secondary_questionary_start",
+                channel=channel,
+                event_parameters=None,
+            )
         self.logger.log_event(
             identity=identity,
             event_name="question_show",
             channel=channel,
             event_parameters={
+                "questionary": "secondary",
                 "qv_number": int(question["num"]),
                 "qv_id": question["id"],
-                "questionary": "secondary",
             },
         )
         return on_secondary_question_show(
@@ -712,10 +743,11 @@ class AppService:
             event_name="answer_sent",
             channel=channel,
             event_parameters={
+                "questionary": "secondary",
                 "qv_number": int(question["num"]),
                 "qv_id": question["id"],
+                "qv_text": question["text"],
                 "answer": final_answer,
-                "questionary": "secondary",
             },
         )
         return self._show_secondary_question(identity, channel, payload)
@@ -782,7 +814,8 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
-        self._log_main_menu_click(identity, channel)
+        from_screen = self._screen_from_payload(payload)
+        self._log_main_menu_click(identity, channel, from_screen=from_screen)
         self._log_main_menu_visit(identity, channel)
         user_name = str(payload.get("user_name", "")).strip()
         if user_name:

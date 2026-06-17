@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from core.app import AppService
 from core.logging.noop import NoopLogger
 from core.messages import back_to_menu_button, button
@@ -61,6 +63,7 @@ def test_back_to_menu_logs_click_then_visit() -> None:
     )
 
     assert logger.events[-2:] == ["main_menu_click", "main_menu_visit"]
+    assert logger.event_parameters[-2]["screen"] == "secondary_questionary"
 
 
 def test_main_questionary_logs_question_and_answer() -> None:
@@ -91,9 +94,29 @@ def test_main_questionary_logs_question_and_answer() -> None:
         if name == "answer_sent"
     ]
     assert answer_events[-1]["answer"] == first_variant
+    assert answer_events[-1]["questionary"] == "main"
+    assert answer_events[-1]["qv_text"]
 
 
-def test_country_plot_loaded_logs_event() -> None:
+def test_returning_user_does_not_log_start_screen_visit() -> None:
+    logger = RecordingLogger()
+    service = _service(logger)
+    identity = logger.ensure_user("streamlit", "ext-return")
+    service.logger.upsert_user(
+        identity=identity,
+        user_name="Роман",
+        registration_date=datetime.now(),
+        registration_channel="streamlit",
+        last_active_at=datetime.now(),
+    )
+
+    service.handle_start(identity, "streamlit")
+
+    assert "start_screen_visit" not in logger.events
+    assert logger.events[-1] == "main_menu_visit"
+
+
+def test_country_plot_loaded_logs_timings() -> None:
     logger = RecordingLogger()
     service = _service(logger)
     identity = logger.ensure_user("streamlit", "ext-plot")
@@ -101,10 +124,18 @@ def test_country_plot_loaded_logs_event() -> None:
     service.log_country_plot_loaded(
         identity,
         "streamlit",
-        trigger="post_plot_joke",
+        sql_ms=10,
+        processing_ms=80,
+        render_ms=20,
+        country_plot_loaded_ms=5,
+        total_ms=115,
     )
 
     assert logger.events[-1] == "country_plot_loaded"
     assert logger.event_parameters[-1] == {
-        "trigger": "post_plot_joke",
+        "sql_ms": 10,
+        "processing_ms": 80,
+        "render_ms": 20,
+        "country_plot_loaded_ms": 5,
+        "total_ms": 115,
     }

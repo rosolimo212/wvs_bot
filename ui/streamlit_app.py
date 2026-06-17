@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -12,8 +13,10 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.messages import button, message
+from core.messages import back_to_menu_button, button, message
+from core.country_profiles import format_country_profile
 from core.models import (
+    ACTION_BACK_TO_MENU,
     ACTION_MAIN_ANSWER,
     ACTION_MAIN_RETURN_LATER,
     ACTION_NAME_ENTERED,
@@ -221,19 +224,32 @@ def run_streamlit(config: dict[str, Any]) -> None:
             from ui.country_plot import build_country_plot
 
             reference_schema = str(config.get("analytics", {}).get("reference_schema", "tl"))
-            fig = build_country_plot(
+            total_started = time.perf_counter()
+            fig, build_timings = build_country_plot(
                 float(meta["user_sv"]),
                 float(meta["user_rv"]),
                 logging_config,
                 reference_schema=reference_schema,
             )
             if fig is not None:
+                render_started = time.perf_counter()
                 st.pyplot(fig)
-                st.caption(message("country_plot_joke", "streamlit"))
+                render_ms = int((time.perf_counter() - render_started) * 1000)
+
+                profile_started = time.perf_counter()
+                country_code = str(meta.get("country_code", ""))
+                st.markdown(format_country_profile(country_code, "streamlit"))
+                country_plot_loaded_ms = int((time.perf_counter() - profile_started) * 1000)
+
+                total_ms = int((time.perf_counter() - total_started) * 1000)
                 service.log_country_plot_loaded(
                     identity,
                     "streamlit",
-                    trigger="post_plot_joke",
+                    sql_ms=build_timings.sql_ms,
+                    processing_ms=build_timings.processing_ms,
+                    render_ms=render_ms,
+                    country_plot_loaded_ms=country_plot_loaded_ms,
+                    total_ms=total_ms,
                 )
                 state["country_plot_logged"] = True
 
@@ -273,7 +289,19 @@ def run_streamlit(config: dict[str, Any]) -> None:
         buttons = state.get("buttons", [])
         for idx, label in enumerate(buttons):
             if st.button(label, key=f"btn_menu_{idx}"):
-                _handle_user_input(service, state, label)
+                if label == back_to_menu_button("streamlit"):
+                    response = service.handle_action(
+                        identity,
+                        "streamlit",
+                        ACTION_BACK_TO_MENU,
+                        {
+                            **_registered_payload(state),
+                            **build_payload(screen=screen),
+                        },
+                    )
+                    apply_response(state, response)
+                else:
+                    _handle_user_input(service, state, label)
                 state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
                 st.rerun()
 

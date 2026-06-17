@@ -3,6 +3,9 @@
 
 from __future__ import annotations
 
+import io
+import time
+from dataclasses import dataclass
 from typing import Any
 
 import matplotlib.pyplot as plt
@@ -27,6 +30,38 @@ ANNOTATE_COUNTRIES = [
     "ARG",
     "CAN",
 ]
+
+
+@dataclass(frozen=True)
+class CountryPlotTimings:
+    sql_ms: int
+    processing_ms: int
+    render_ms: int
+    total_ms: int
+
+
+@dataclass(frozen=True)
+class CountryPlotPipelineTimings:
+    sql_ms: int
+    processing_ms: int
+    render_ms: int
+    country_plot_loaded_ms: int
+    total_ms: int
+
+
+def format_country_plot_timings(timings: CountryPlotPipelineTimings) -> str:
+    """Текстовый отчёт по этапам загрузки карты стран."""
+    return "\n".join(
+        [
+            "Загрузка карты стран:",
+            f"  1. SQL (country_data)      {timings.sql_ms:>5} ms",
+            f"  2. Построение графика      {timings.processing_ms:>5} ms",
+            f"  3. Отрисовка (pyplot)      {timings.render_ms:>5} ms",
+            f"  4. Карточка страны         {timings.country_plot_loaded_ms:>5} ms",
+            f"  ─────────────────────────────────",
+            f"  Итого                      {timings.total_ms:>5} ms",
+        ]
+    )
 
 
 def load_country_data(
@@ -55,11 +90,21 @@ def build_country_plot(
     logging_config: dict[str, Any],
     *,
     reference_schema: str = "tl",
-) -> plt.Figure | None:
-    df = load_country_data(logging_config, reference_schema=reference_schema)
-    if df is None or df.empty:
-        return None
+    country_df: pd.DataFrame | None = None,
+) -> tuple[plt.Figure | None, CountryPlotTimings]:
+    started = time.perf_counter()
 
+    sql_started = time.perf_counter()
+    if country_df is not None:
+        df = country_df
+    else:
+        df = load_country_data(logging_config, reference_schema=reference_schema)
+    sql_ms = int((time.perf_counter() - sql_started) * 1000)
+    if df is None or df.empty:
+        total_ms = int((time.perf_counter() - started) * 1000)
+        return None, CountryPlotTimings(sql_ms=sql_ms, processing_ms=0, render_ms=0, total_ms=total_ms)
+
+    processing_started = time.perf_counter()
     df = df.copy()
     df["country_rv"] = df["country_rv"].fillna(user_rv).astype(float)
     df["country_sv"] = df["country_sv"].fillna(user_sv).astype(float)
@@ -101,4 +146,56 @@ def build_country_plot(
     ax.set_ylabel("Ценности выживания/Самовыражения")
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
-    return fig
+    processing_ms = int((time.perf_counter() - processing_started) * 1000)
+    total_ms = int((time.perf_counter() - started) * 1000)
+    return fig, CountryPlotTimings(
+        sql_ms=sql_ms,
+        processing_ms=processing_ms,
+        render_ms=0,
+        total_ms=total_ms,
+    )
+
+
+def measure_country_plot_pipeline(
+    user_sv: float,
+    user_rv: float,
+    country_code: str,
+    logging_config: dict[str, Any],
+    *,
+    reference_schema: str = "tl",
+    country_df: pd.DataFrame | None = None,
+    channel: str = "streamlit",
+) -> CountryPlotPipelineTimings:
+    """Замер всех этапов загрузки карты (для диагностики и pre-commit)."""
+    from core.country_profiles import format_country_profile
+
+    total_started = time.perf_counter()
+    fig, build_timings = build_country_plot(
+        user_sv,
+        user_rv,
+        logging_config,
+        reference_schema=reference_schema,
+        country_df=country_df,
+    )
+
+    render_ms = 0
+    country_plot_loaded_ms = 0
+    if fig is not None:
+        render_started = time.perf_counter()
+        buffer = io.BytesIO()
+        fig.savefig(buffer, format="png")
+        plt.close(fig)
+        render_ms = int((time.perf_counter() - render_started) * 1000)
+
+        profile_started = time.perf_counter()
+        format_country_profile(country_code, channel)
+        country_plot_loaded_ms = int((time.perf_counter() - profile_started) * 1000)
+
+    total_ms = int((time.perf_counter() - total_started) * 1000)
+    return CountryPlotPipelineTimings(
+        sql_ms=build_timings.sql_ms,
+        processing_ms=build_timings.processing_ms,
+        render_ms=render_ms,
+        country_plot_loaded_ms=country_plot_loaded_ms,
+        total_ms=total_ms,
+    )
