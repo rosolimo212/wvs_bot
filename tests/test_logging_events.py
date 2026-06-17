@@ -152,7 +152,7 @@ def test_find_country_start_logs_answer_text() -> None:
             "logging": {"schema": "wvs"},
             "telegram": {"token": ""},
             "paths": {"questions_file": "questions.json"},
-            "analytics": {"reference_schema": "tl"},
+            "analytics": {"reference_schema": "wvs"},
         },
         answer_store=MemoryMainAnswerStore(),
         secondary_answer_store=MemorySecondaryAnswerStore(),

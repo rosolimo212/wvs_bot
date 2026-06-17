@@ -155,7 +155,7 @@ def _make_service(logger: MemoryLogger | None = None) -> tuple[AppService, Memor
         "logging": {"schema": "wvs"},
         "telegram": {"token": "test"},
         "paths": {"questions_file": "questions.json"},
-        "analytics": {"reference_schema": "tl"},
+        "analytics": {"reference_schema": "wvs"},
     }
     service = AppService(
         logger=log,

@@ -67,7 +67,7 @@ streamlit run ui/streamlit_app.py
 
 **Tests:** `./pre_commit_check.sh` (pytest + business checks).
 
-**Layout:** UI → `AppService` (`core/app.py`) → `brain` + PostgreSQL (`wvs` schema for users/events/answers, `tl` for reference tables). Details in `task.md`.
+**Layout:** UI → `AppService` (`core/app.py`) → `brain` + PostgreSQL (`communication` DB, schema **`wvs`**: users, events, answers, `gen_sample`, `country_data`). Details in `task.md`.
 
 **Legacy code:** `old/` (previous monolithic Streamlit/Telegram bots).
 
@@ -162,7 +162,7 @@ flowchart LR
 - **Интерфейсы** (`ui/`) только показывают текст и кнопки.
 - **AppService** (`core/app.py`) — анкеты, логи, аналитика.
 - **brain** (`core/brain.py`) — чистая логика сценария, без базы и сети.
-- **База** `communication`: схема `wvs` (пользователи, события, ответы), схема `tl` (справочники `gen_sample`, `country_data`).
+- **База** `communication`, схема **`wvs`**: `users`, `events`, `user_answers`, `user_reviews`, `gen_sample`, `country_data`.
 
 Тексты диалогов — в `data/dialog_messages.json`, вопросы — в `questions.json`.
 

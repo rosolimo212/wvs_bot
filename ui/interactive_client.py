@@ -4,7 +4,7 @@
 
 Цель:
     Не дублировать обработку ответов AppService между консолью и Telegram.
-    График «Найти страну» здесь не строится — только текст и карточка страны.
+    График страны: Telegram и Streamlit; в консоли — только текст.
 
 Выход:
     Обновлённый state после шага сценария; для FIND_COUNTRY — дополненный текст профиля.
@@ -57,18 +57,16 @@ def sync_profile_from_db(service, identity: UserIdentity, state: dict[str, Any])
             state["registration_date"] = str(reg_date)
 
 
-def enrich_find_country_without_plot(
+def enrich_find_country_console(
     service,
     state: dict[str, Any],
     identity: UserIdentity,
     channel: str,
     config: dict[str, Any],
 ) -> None:
-    """
-    Для console/telegram: карточка страны текстом, без matplotlib.
-
-    Логируем country_plot_loaded с render_ms=0 (график не показывался).
-    """
+    """Консоль: только текстовая карточка страны (без графика)."""
+    if channel != "console":
+        return
     screen = state.get("screen", "")
     if screen != Screen.FIND_COUNTRY.value:
         state.pop("country_profile_appended", None)
@@ -83,18 +81,6 @@ def enrich_find_country_without_plot(
     if profile_text.strip():
         state["last_text"] = f"{state.get('last_text', '')}\n\n{profile_text}"
     state["country_profile_appended"] = True
-
-    logging_config = config.get("logging") if config.get("app", {}).get("logging_enabled") else None
-    if logging_config:
-        service.log_country_plot_loaded(
-            identity,
-            channel,
-            sql_ms=0,
-            processing_ms=0,
-            render_ms=0,
-            country_plot_loaded_ms=0,
-            total_ms=0,
-        )
 
 
 def handle_name_entered(
@@ -153,7 +139,7 @@ def handle_raw_input(
         )
     apply_response(state, response)
     if config is not None:
-        enrich_find_country_without_plot(service, state, identity, channel, config)
+        enrich_find_country_console(service, state, identity, channel, config)
     state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
     return response
 
@@ -228,7 +214,7 @@ def questionnaire_actions(screen: str) -> tuple[str, str]:
 
 
 def console_plot_note(channel: str) -> str:
-    """Подсказка, что график доступен только в браузере."""
+    """Подсказка в консоли, что график доступен в Streamlit/Telegram."""
     if channel == "console":
         return message("console_plot_skipped", channel)
-    return message("telegram_plot_skipped", channel)
+    return ""

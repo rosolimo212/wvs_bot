@@ -83,16 +83,19 @@ def _table_columns(columns: list[str]) -> str:
 
 
 def _reference_schema_sql(sql_text: str, reference_schema: str) -> str:
-    return sql_text.replace("tl.", f"{reference_schema}.").replace(
-        "CREATE SCHEMA IF NOT EXISTS tl",
-        f"CREATE SCHEMA IF NOT EXISTS {reference_schema}",
-    )
+    if reference_schema != "wvs":
+        sql_text = sql_text.replace("wvs.", f"{reference_schema}.")
+        sql_text = sql_text.replace(
+            "CREATE SCHEMA IF NOT EXISTS wvs",
+            f"CREATE SCHEMA IF NOT EXISTS {reference_schema}",
+        )
+    return sql_text
 
 
 def ensure_reference_schema(
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> None:
     """Создаёт схему и таблицы gen_sample, country_data (IF NOT EXISTS)."""
     sql_path = PROJECT_ROOT / "sql" / "005_reference_schema.sql"
@@ -145,7 +148,7 @@ def _copy_csv(
 def enrich_country_data_from_profiles(
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
     profiles_path: Path | None = None,
 ) -> int:
     """
@@ -189,7 +192,7 @@ def enrich_country_data_from_profiles(
 def setup_reference_tables(
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
     gen_sample_path: Path | None = None,
     country_data_path: Path | None = None,
     profiles_path: Path | None = None,
@@ -243,7 +246,7 @@ def setup_reference_tables(
 def load_reference_data(
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
     gen_sample_path: Path | None = None,
     country_data_path: Path | None = None,
     profiles_path: Path | None = None,
@@ -265,7 +268,7 @@ def load_reference_data(
 def reference_data_status(
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> dict[str, int | None]:
     """Возвращает число строк в справочниках или None, если таблицы нет."""
     result: dict[str, int | None] = {"gen_sample": None, "country_data": None}

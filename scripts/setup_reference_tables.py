@@ -44,7 +44,7 @@ def main() -> int:
     parser.add_argument(
         "--schema",
         default=None,
-        help="Схема справочников (по умолчанию analytics.reference_schema или tl)",
+        help="Схема справочников (по умолчанию logging.schema или wvs)",
     )
     parser.add_argument(
         "--status",
@@ -74,7 +74,11 @@ def main() -> int:
         return 1
 
     logging_config = config["logging"]
-    reference_schema = args.schema or config.get("analytics", {}).get("reference_schema", "tl")
+    reference_schema = (
+        args.schema
+        or config.get("analytics", {}).get("reference_schema")
+        or logging_config.get("schema", "wvs")
+    )
 
     if args.status:
         status = reference_data_status(logging_config, reference_schema=reference_schema)

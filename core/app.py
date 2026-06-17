@@ -152,12 +152,18 @@ class AppService:
             event_parameters={"answer": answer},
         )
 
-    def _log_find_own_place_start(self, identity: UserIdentity, channel: str) -> None:
+    def _log_find_own_place_start(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        answer: str,
+    ) -> None:
         self.logger.log_event(
             identity=identity,
             event_name="find_own_place_start",
             channel=channel,
-            event_parameters=None,
+            event_parameters={"answer": answer},
         )
 
     def log_country_plot_loaded(
@@ -432,7 +438,11 @@ class AppService:
         return None
 
     def _reference_schema(self) -> str:
-        return str(self.config.get("analytics", {}).get("reference_schema", "tl"))
+        analytics_schema = self.config.get("analytics", {}).get("reference_schema")
+        if analytics_schema:
+            return str(analytics_schema)
+        logging_cfg = self.config.get("logging") or {}
+        return str(logging_cfg.get("schema", "wvs"))
 
     def _handle_option_3(
         self,
@@ -442,7 +452,9 @@ class AppService:
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
         if not self.is_main_questionary_complete(identity):
-            return on_feature_locked(channel, **self._menu_meta(identity))
+            response = on_feature_locked(channel, **self._menu_meta(identity))
+            self._log_find_country_start(identity, channel, answer=response.text)
+            return response
 
         logging_config = self._logging_config()
         if logging_config is None:
@@ -482,12 +494,15 @@ class AppService:
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
         if not self.is_main_questionary_complete(identity):
-            return on_feature_locked(channel, **self._menu_meta(identity))
+            response = on_feature_locked(channel, **self._menu_meta(identity))
+            self._log_find_own_place_start(identity, channel, answer=response.text)
+            return response
 
         logging_config = self._logging_config()
         if logging_config is None:
-            self._log_find_own_place_start(identity, channel)
-            return on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+            response = on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+            self._log_find_own_place_start(identity, channel, answer=response.text)
+            return response
 
         try:
             global_pos = find_global_position(
@@ -498,8 +513,9 @@ class AppService:
         except Exception:
             global_pos = None
         if global_pos is None:
-            self._log_find_own_place_start(identity, channel)
-            return on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+            response = on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+            self._log_find_own_place_start(identity, channel, answer=response.text)
+            return response
 
         parts = [
             message(
@@ -550,8 +566,9 @@ class AppService:
         elif age_pos is None:
             parts.append(message("find_own_place_secondary_hint", channel))
 
-        self._log_find_own_place_start(identity, channel)
-        return on_find_own_place("\n\n".join(parts), channel)
+        result_text = "\n\n".join(parts)
+        self._log_find_own_place_start(identity, channel, answer=result_text)
+        return on_find_own_place(result_text, channel)
 
     def _show_main_question(
         self,

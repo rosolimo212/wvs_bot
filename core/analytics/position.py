@@ -26,7 +26,7 @@ def _load_position(
     user_id: str,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
     rv_index: int = 2,
     sv_index: int = 3,
 ) -> UserPosition | None:
@@ -51,7 +51,7 @@ def find_global_position(
     user_id: str,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> UserPosition | None:
     return _load_position(
         "count_pos.sql",
@@ -65,7 +65,7 @@ def find_age_position(
     user_id: str,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> UserPosition | None:
     return _load_position(
         "age_strat.sql",
@@ -81,7 +81,7 @@ def find_gender_age_position(
     user_id: str,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> UserPosition | None:
     return _load_position(
         "gender_age_strat.sql",

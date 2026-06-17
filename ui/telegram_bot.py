@@ -3,17 +3,12 @@
 Telegram-клиент WVS на aiogram 3.
 
 Цель:
-    Тот же сценарий, что Streamlit/console, через AppService.
-    График «Найти страну» не отправляется — текст + карточка страны.
-
-Вход:
-    config.yaml с telegram.token и остальными секциями проекта.
+    Полноценный клиент: тот же сценарий, что Streamlit, включая график страны.
 """
 
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +21,7 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup
+from aiogram.types import BufferedInputFile, KeyboardButton, Message, ReplyKeyboardMarkup
 
 from core.messages import (
     back_to_menu_button,
@@ -43,10 +38,10 @@ from core.models import (
     UserIdentity,
 )
 from ui.base import build_app_service
+from ui.find_country_delivery import deliver_find_country_telegram
 from ui.helpers import apply_response, build_payload, store_identity
 from ui.interactive_client import (
-    console_plot_note,
-    enrich_find_country_without_plot,
+    enrich_find_country_console,
     handle_name_entered,
     handle_raw_input,
     is_questionnaire_screen,
@@ -94,29 +89,34 @@ def _state_for_screen(screen: Screen) -> State:
     return Flow.main_menu
 
 
-async def _send_response(message: Message, state: FSMContext, channel: str = "telegram") -> None:
+async def _send_response(
+    message: Message,
+    state: FSMContext,
+    *,
+    bot: Bot,
+    service,
+    config: dict[str, Any],
+    channel: str = "telegram",
+) -> None:
     data = await state.get_data()
-    text = data.get("last_text", "")
-    screen = data.get("screen", "")
-    if screen == Screen.FIND_COUNTRY.value and data.get("meta", {}).get("show_country_plot"):
-        text = f"{text}\n\n{console_plot_note(channel)}"
+    identity = _identity_from_data(data)
     buttons = data.get("buttons", [])
     markup = _make_keyboard(buttons) if buttons else None
+
+    delivery = deliver_find_country_telegram(service, identity, data, config, channel)
+    await state.update_data(**data)
+
+    if delivery is not None:
+        await message.answer(delivery["text"], reply_markup=markup)
+        if delivery.get("png_bytes"):
+            await bot.send_photo(
+                message.chat.id,
+                BufferedInputFile(delivery["png_bytes"], filename="country_plot.png"),
+            )
+        return
+
+    text = data.get("last_text", "")
     await message.answer(text, reply_markup=markup)
-
-
-def _apply_and_sync(
-    service,
-    identity: UserIdentity,
-    channel: str,
-    session: dict[str, Any],
-    response,
-    *,
-    config: dict[str, Any],
-) -> None:
-    apply_response(session, response)
-    enrich_find_country_without_plot(service, session, identity, channel, config)
-    session["main_questionary_complete"] = service.is_main_questionary_complete(identity)
 
 
 async def run_telegram(config: dict[str, Any]) -> None:
@@ -126,6 +126,16 @@ async def run_telegram(config: dict[str, Any]) -> None:
 
     bot = Bot(token=token)
     dp = Dispatcher(storage=MemoryStorage())
+
+    async def _reply(message: Message, state: FSMContext) -> None:
+        await _send_response(
+            message,
+            state,
+            bot=bot,
+            service=service,
+            config=config,
+            channel=channel,
+        )
 
     @dp.message(CommandStart())
     async def cmd_start(message: Message, state: FSMContext) -> None:
@@ -138,10 +148,11 @@ async def run_telegram(config: dict[str, Any]) -> None:
         session_state: dict[str, Any] = {}
         store_identity(session_state, identity)
         sync_profile_from_db(service, identity, session_state)
-        _apply_and_sync(service, identity, channel, session_state, response, config=config)
+        apply_response(session_state, response)
+        session_state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
         await state.update_data(**session_state)
         await state.set_state(_state_for_screen(response.screen))
-        await _send_response(message, state, channel)
+        await _reply(message, state)
 
     @dp.message(Flow.start)
     async def on_start_screen(message: Message, state: FSMContext) -> None:
@@ -151,7 +162,7 @@ async def run_telegram(config: dict[str, Any]) -> None:
         handle_name_entered(service, identity, channel, data, user_name)
         await state.update_data(**data)
         await state.set_state(_state_for_screen(Screen(data["screen"])))
-        await _send_response(message, state, channel)
+        await _reply(message, state)
 
     @dp.message(Flow.name_confirm)
     async def on_name_confirm(message: Message, state: FSMContext) -> None:
@@ -185,7 +196,7 @@ async def run_telegram(config: dict[str, Any]) -> None:
         data["main_questionary_complete"] = service.is_main_questionary_complete(identity)
         await state.update_data(**data)
         await state.set_state(_state_for_screen(response.screen))
-        await _send_response(message, state, channel)
+        await _reply(message, state)
 
     @dp.message(Flow.main_questionary, F.text)
     async def on_main_questionary(message: Message, state: FSMContext) -> None:
@@ -203,7 +214,7 @@ async def run_telegram(config: dict[str, Any]) -> None:
         answer_action, return_action = questionnaire_actions(screen)
 
         if text == return_later_label:
-            response = return_later_from_questionnaire(
+            return_later_from_questionnaire(
                 service,
                 identity,
                 channel,
@@ -224,7 +235,7 @@ async def run_telegram(config: dict[str, Any]) -> None:
                 await message.answer(dlg_message("main_answer_invalid", channel))
                 return
 
-            response = submit_questionnaire_answer(
+            submit_questionnaire_answer(
                 service,
                 identity,
                 channel,
@@ -237,29 +248,26 @@ async def run_telegram(config: dict[str, Any]) -> None:
 
         await state.update_data(**data)
         await state.set_state(_state_for_screen(Screen(data["screen"])))
-        await _send_response(message, state, channel)
+        await _reply(message, state)
 
     @dp.message(Flow.main_menu, F.text)
     async def on_main_menu(message: Message, state: FSMContext) -> None:
         data = await state.get_data()
         identity = _identity_from_data(data)
         text = message.text or ""
-        response = handle_raw_input(service, identity, channel, data, text, config=config)
+        handle_raw_input(service, identity, channel, data, text, config=config)
         await state.update_data(**data)
-        await state.set_state(_state_for_screen(response.screen))
-        await _send_response(message, state, channel)
+        await state.set_state(_state_for_screen(Screen(data["screen"])))
+        await _reply(message, state)
 
     @dp.message(Flow.analytics, F.text)
     async def on_analytics(message: Message, state: FSMContext) -> None:
         data = await state.get_data()
         identity = _identity_from_data(data)
         text = message.text or ""
-        if text == back_to_menu_button(channel):
-            response = handle_raw_input(service, identity, channel, data, text, config=config)
-        else:
-            response = handle_raw_input(service, identity, channel, data, text, config=config)
+        handle_raw_input(service, identity, channel, data, text, config=config)
         await state.update_data(**data)
-        await state.set_state(_state_for_screen(response.screen))
-        await _send_response(message, state, channel)
+        await state.set_state(_state_for_screen(Screen(data["screen"])))
+        await _reply(message, state)
 
     await dp.start_polling(bot)

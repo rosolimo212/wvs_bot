@@ -223,7 +223,10 @@ def run_streamlit(config: dict[str, Any]) -> None:
         if logging_config:
             from ui.country_plot import build_country_plot
 
-            reference_schema = str(config.get("analytics", {}).get("reference_schema", "tl"))
+            reference_schema = str(
+                config.get("analytics", {}).get("reference_schema")
+                or config.get("logging", {}).get("schema", "wvs")
+            )
             total_started = time.perf_counter()
             fig, build_timings = build_country_plot(
                 float(meta["user_sv"]),

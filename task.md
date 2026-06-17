@@ -137,7 +137,7 @@ event_name для логирования:
 - question_show — показ вопроса: questionary, qv_number, qv_id
 - answer_sent — ответ записан: questionary, qv_number, qv_id, qv_text, answer
 - find_counry_start — экран «Найти страну»; параметр answer (текст ответа пользователю)
-- find_own_place_start — экран «Понять своё место в социуме»
+- find_own_place_start — экран «Понять своё место в социуме»; параметр answer
 - country_plot_loaded — карточка страны после графика; тайминги sql_ms, processing_ms, render_ms, country_plot_loaded_ms, total_ms
 
 

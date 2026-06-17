@@ -31,7 +31,11 @@ def main() -> int:
         print("Нужен logging_enabled: true в config.yaml", file=sys.stderr)
         return 1
 
-    schema = args.schema or config.get("analytics", {}).get("reference_schema", "tl")
+    schema = (
+        args.schema
+        or config.get("analytics", {}).get("reference_schema")
+        or config["logging"].get("schema", "wvs")
+    )
     statements = [
         f"ALTER TABLE {schema}.country_data ADD COLUMN IF NOT EXISTS full_name TEXT",
         f"ALTER TABLE {schema}.country_data ADD COLUMN IF NOT EXISTS government_type TEXT",

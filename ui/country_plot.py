@@ -67,7 +67,7 @@ def format_country_plot_timings(timings: CountryPlotPipelineTimings) -> str:
 def load_country_data(
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> pd.DataFrame | None:
     schema = reference_schema
     query = f"""
@@ -89,7 +89,7 @@ def build_country_plot(
     user_rv: float,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
     country_df: pd.DataFrame | None = None,
 ) -> tuple[plt.Figure | None, CountryPlotTimings]:
     started = time.perf_counter()
@@ -156,13 +156,44 @@ def build_country_plot(
     )
 
 
+def export_country_plot_png(
+    user_sv: float,
+    user_rv: float,
+    logging_config: dict[str, Any],
+    *,
+    reference_schema: str = "wvs",
+) -> tuple[bytes | None, CountryPlotTimings]:
+    """Строит график и возвращает PNG-байты (для Telegram и т.п.)."""
+    render_started = time.perf_counter()
+    fig, timings = build_country_plot(
+        user_sv,
+        user_rv,
+        logging_config,
+        reference_schema=reference_schema,
+    )
+    if fig is None:
+        return None, timings
+
+    buffer = io.BytesIO()
+    fig.savefig(buffer, format="png")
+    plt.close(fig)
+    render_ms = int((time.perf_counter() - render_started) * 1000)
+    total_ms = timings.total_ms + render_ms
+    return buffer.getvalue(), CountryPlotTimings(
+        sql_ms=timings.sql_ms,
+        processing_ms=timings.processing_ms,
+        render_ms=render_ms,
+        total_ms=total_ms,
+    )
+
+
 def measure_country_plot_pipeline(
     user_sv: float,
     user_rv: float,
     country_code: str,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
     country_df: pd.DataFrame | None = None,
     channel: str = "streamlit",
 ) -> CountryPlotPipelineTimings:

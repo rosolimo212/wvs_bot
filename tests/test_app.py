@@ -93,6 +93,84 @@ def test_text_question_uses_input_mode_text() -> None:
     assert button("custom_answer", "streamlit") not in shown.buttons
 
 
+def test_option_3_locked_logs_find_country_start() -> None:
+    from core.logging.noop import NoopLogger
+
+    class RecordingLogger(NoopLogger):
+        def __init__(self) -> None:
+            super().__init__()
+            self.events: list[str] = []
+            self.event_parameters: list[dict] = []
+
+        def log_event(self, identity, event_name, channel, event_parameters=None, timestamp=None):
+            self.events.append(event_name)
+            self.event_parameters.append(event_parameters or {})
+
+    logger = RecordingLogger()
+    service = AppService(
+        logger,
+        {
+            "app": {"interface": "telegram", "logging_enabled": True},
+            "logging": {"schema": "wvs"},
+            "telegram": {"token": ""},
+            "paths": {"questions_file": "questions.json"},
+        },
+        answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
+    )
+    identity = logger.ensure_user("telegram", "locked-3")
+    service.handle_action(identity, "telegram", "name_entered", {"text": "Иван"})
+    response = service.handle_action(
+        identity,
+        "telegram",
+        "option_3",
+        {"user_name": "Иван"},
+    )
+    assert message("feature_locked", "telegram") in response.text
+    assert "find_counry_start" in logger.events
+    idx = logger.events.index("find_counry_start")
+    assert logger.event_parameters[idx]["answer"] == response.text
+
+
+def test_option_4_locked_logs_find_own_place_start() -> None:
+    from core.logging.noop import NoopLogger
+
+    class RecordingLogger(NoopLogger):
+        def __init__(self) -> None:
+            super().__init__()
+            self.events: list[str] = []
+            self.event_parameters: list[dict] = []
+
+        def log_event(self, identity, event_name, channel, event_parameters=None, timestamp=None):
+            self.events.append(event_name)
+            self.event_parameters.append(event_parameters or {})
+
+    logger = RecordingLogger()
+    service = AppService(
+        logger,
+        {
+            "app": {"interface": "telegram", "logging_enabled": True},
+            "logging": {"schema": "wvs"},
+            "telegram": {"token": ""},
+            "paths": {"questions_file": "questions.json"},
+        },
+        answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
+    )
+    identity = logger.ensure_user("telegram", "locked-4")
+    service.handle_action(identity, "telegram", "name_entered", {"text": "Иван"})
+    response = service.handle_action(
+        identity,
+        "telegram",
+        "option_4",
+        {"user_name": "Иван"},
+    )
+    assert message("feature_locked", "telegram") in response.text
+    assert "find_own_place_start" in logger.events
+    idx = logger.events.index("find_own_place_start")
+    assert logger.event_parameters[idx]["answer"] == response.text
+
+
 def test_option_3_locked_until_complete() -> None:
     service = _service()
     identity = service.logger.ensure_user("streamlit", "ext-4")

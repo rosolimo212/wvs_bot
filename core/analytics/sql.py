@@ -15,7 +15,7 @@ def adapt_sql(
     sql: str,
     *,
     user_schema: str,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> str:
     sql = sql.replace("tl.user_answers", f"{user_schema}.user_answers")
     sql = sql.replace("tl.user_reviews", f"{user_schema}.user_reviews")
@@ -28,7 +28,7 @@ def load_sql(
     filename: str,
     *,
     user_schema: str,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> str:
     sql = (SQL_ROOT / filename).read_text(encoding="utf-8")
     return adapt_sql(sql, user_schema=user_schema, reference_schema=reference_schema)

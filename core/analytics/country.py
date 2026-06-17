@@ -22,7 +22,7 @@ def find_nearest_country(
     user_id: str,
     logging_config: dict[str, Any],
     *,
-    reference_schema: str = "tl",
+    reference_schema: str = "wvs",
 ) -> NearestCountry | None:
     schema = logging_config["schema"]
     query = load_sql(
