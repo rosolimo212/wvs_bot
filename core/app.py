@@ -124,6 +124,22 @@ class AppService:
             event_parameters={"button": back_to_menu_button(channel)},
         )
 
+    def log_country_plot_loaded(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        trigger: str,
+    ) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="country_plot_loaded",
+            channel=channel,
+            event_parameters={
+                "trigger": trigger,
+            },
+        )
+
     def _menu_meta(self, identity: UserIdentity) -> dict[str, Any]:
         return {
             "main_questionary_complete": self.is_main_questionary_complete(identity),

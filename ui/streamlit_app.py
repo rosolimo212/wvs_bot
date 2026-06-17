@@ -205,8 +205,17 @@ def run_streamlit(config: dict[str, Any]) -> None:
     )
     st.markdown(state.get("last_text", ""))
 
+    screen = state.get("screen", Screen.START.value)
+    if screen != Screen.FIND_COUNTRY.value:
+        state.pop("country_plot_logged", None)
+
     meta = state.get("meta", {})
-    if meta.get("show_country_plot") and meta.get("user_rv") is not None:
+    if (
+        screen == Screen.FIND_COUNTRY.value
+        and meta.get("show_country_plot")
+        and meta.get("user_rv") is not None
+        and not state.get("country_plot_logged")
+    ):
         logging_config = config.get("logging") if config.get("app", {}).get("logging_enabled") else None
         if logging_config:
             from ui.country_plot import build_country_plot
@@ -220,8 +229,13 @@ def run_streamlit(config: dict[str, Any]) -> None:
             )
             if fig is not None:
                 st.pyplot(fig)
-
-    screen = state.get("screen", Screen.START.value)
+                st.caption(message("country_plot_joke", "streamlit"))
+                service.log_country_plot_loaded(
+                    identity,
+                    "streamlit",
+                    trigger="post_plot_joke",
+                )
+                state["country_plot_logged"] = True
 
     if screen == Screen.START.value:
         name = st.text_input(message("browser_name_label", "streamlit"), key="name_input")

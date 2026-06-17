@@ -137,6 +137,7 @@ event_name для логирования:
 - answer_sent
 - find_counry_start
 - find_own_place_start
+- country_plot_loaded
 - main_menu_click
 
 

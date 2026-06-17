@@ -200,6 +200,15 @@
       "browser": ""
     },
     {
+      "id": 30,
+      "name": "country_plot_joke",
+      "when": "Короткое сообщение после отрисовки графика стран.",
+      "default": "Пакуем чемоданы?",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
       "id": 15,
       "name": "main_answer_empty",
       "when": "Пустой свой ответ на вопрос анкеты.",

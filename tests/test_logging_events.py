@@ -91,3 +91,20 @@ def test_main_questionary_logs_question_and_answer() -> None:
         if name == "answer_sent"
     ]
     assert answer_events[-1]["answer"] == first_variant
+
+
+def test_country_plot_loaded_logs_event() -> None:
+    logger = RecordingLogger()
+    service = _service(logger)
+    identity = logger.ensure_user("streamlit", "ext-plot")
+
+    service.log_country_plot_loaded(
+        identity,
+        "streamlit",
+        trigger="post_plot_joke",
+    )
+
+    assert logger.events[-1] == "country_plot_loaded"
+    assert logger.event_parameters[-1] == {
+        "trigger": "post_plot_joke",
+    }
