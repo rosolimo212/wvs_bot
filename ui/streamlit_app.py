@@ -33,6 +33,13 @@ from ui.helpers import (
 )
 from ui.streamlit_cookies import persist_external_id_cookie, resolve_external_user_id
 
+FAVICON_PATH = ROOT / "hqdefault.jpg"
+
+
+def _page_icon() -> str:
+    """Фавикон: hqdefault.jpg в корне проекта или emoji по умолчанию."""
+    return str(FAVICON_PATH) if FAVICON_PATH.is_file() else "🌍"
+
 
 def _init_session(service, state) -> None:
     if state.get("initialized"):
@@ -186,7 +193,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
 
     st.set_page_config(
         page_title=message("browser_page_title", "streamlit"),
-        page_icon="🌍",
+        page_icon=_page_icon(),
     )
 
     service = build_app_service(config)
