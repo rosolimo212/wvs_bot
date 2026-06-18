@@ -21,9 +21,18 @@
     },
     {
       "id": 3,
-      "name": "main_menu_greeting",
-      "when": "После регистрации или повторного визита зарегистрированного пользователя.",
+      "name": "main_menu_greeting_new",
+      "when": "Первый вход в главное меню сразу после регистрации.",
       "default": "Приятно познакомиться, {user_name}!\n\nВыберите действие:",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 32,
+      "name": "main_menu_greeting_return",
+      "when": "Повторный вход в главное меню (возврат, back to menu, вернуться позже).",
+      "default": "Рады, что вы вернулись, {user_name}!\n\nВыберите действие:",
       "console": "",
       "telegram": "",
       "browser": ""

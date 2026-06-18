@@ -41,6 +41,14 @@ def _page_icon() -> str:
     return str(FAVICON_PATH) if FAVICON_PATH.is_file() else "🌍"
 
 
+def _streamlit_buttons_nav_first(buttons: list[str], channel: str = "streamlit") -> list[str]:
+    """Навигационные кнопки (в главное меню и т.п.) — первыми, слева."""
+    back = back_to_menu_button(channel)
+    ordered = [back] if back in buttons else []
+    ordered.extend(label for label in buttons if label != back)
+    return ordered
+
+
 def _init_session(service, state) -> None:
     if state.get("initialized"):
         return
@@ -150,8 +158,19 @@ def _render_questionnaire_screen(
         )
 
     col1, col2 = st.columns([1, 4])
+    submit_label = message("browser_btn_submit", "streamlit")
     with col1:
-        if st.button(message("browser_btn_submit", "streamlit"), key=f"{key_prefix}_submit_{qv_number}"):
+        if st.button(return_later_label, key=f"{key_prefix}_return_{qv_number}"):
+            response = service.handle_action(
+                identity,
+                "streamlit",
+                return_action,
+                _registered_payload(state),
+            )
+            apply_response(state, response)
+            st.rerun()
+    with col2:
+        if st.button(submit_label, key=f"{key_prefix}_submit_{qv_number}"):
             if input_mode == "text":
                 if custom_text.strip():
                     answer = custom_text.strip()
@@ -175,16 +194,6 @@ def _render_questionnaire_screen(
             )
             apply_response(state, response)
             on_answer(identity)
-            st.rerun()
-    with col2:
-        if st.button(return_later_label, key=f"{key_prefix}_return_{qv_number}"):
-            response = service.handle_action(
-                identity,
-                "streamlit",
-                return_action,
-                _registered_payload(state),
-            )
-            apply_response(state, response)
             st.rerun()
 
 
@@ -299,7 +308,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
         )
 
     else:
-        buttons = state.get("buttons", [])
+        buttons = _streamlit_buttons_nav_first(state.get("buttons", []), "streamlit")
         for idx, label in enumerate(buttons):
             if st.button(label, key=f"btn_menu_{idx}"):
                 if label == back_to_menu_button("streamlit"):

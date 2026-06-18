@@ -55,9 +55,11 @@ def on_name_entered(
     channel: str | None = None,
     *,
     main_questionary_complete: bool = False,
+    is_registration: bool = False,
 ) -> AppResponse:
+    greeting = "main_menu_greeting_new" if is_registration else "main_menu_greeting_return"
     return AppResponse(
-        text=message("main_menu_greeting", channel, user_name=user_name),
+        text=message(greeting, channel, user_name=user_name),
         buttons=menu_buttons(channel),
         screen=Screen.MAIN_MENU,
         meta={"main_questionary_complete": main_questionary_complete},

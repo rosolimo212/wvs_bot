@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from core.app import AppService
 from core.logging.noop import NoopLogger
 from core.messages import back_to_menu_button, button, message, return_later_button
@@ -38,6 +40,32 @@ def test_handle_start_new_user() -> None:
     identity = service.logger.ensure_user("streamlit", "ext-1")
     response = service.handle_start(identity, "streamlit")
     assert response.screen == Screen.START
+
+
+def test_handle_start_returning_user_greeting() -> None:
+    service = _service()
+    identity = service.logger.ensure_user("streamlit", "ext-return-greet")
+    service.logger.upsert_user(
+        identity=identity,
+        user_name="Роман",
+        registration_date=datetime.now(),
+        registration_channel="streamlit",
+        last_active_at=datetime.now(),
+    )
+    response = service.handle_start(identity, "streamlit")
+    assert "Рады, что вы вернулись" in response.text
+
+
+def test_register_user_greeting() -> None:
+    service = _service()
+    identity = service.logger.ensure_user("streamlit", "ext-reg-greet")
+    response = service.handle_action(
+        identity,
+        "streamlit",
+        "name_entered",
+        {"text": "Роман"},
+    )
+    assert "Приятно познакомиться" in response.text
 
 
 def test_handle_option_1_shows_first_question() -> None:

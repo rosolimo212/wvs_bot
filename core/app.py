@@ -378,7 +378,12 @@ class AppService:
         if confirm:
             return on_telegram_name_confirm(user_name, channel)
         self._log_main_menu_visit(identity, channel)
-        return on_name_entered(user_name, channel, **self._menu_meta(identity))
+        return on_name_entered(
+            user_name,
+            channel,
+            is_registration=True,
+            **self._menu_meta(identity),
+        )
 
     def _handle_name_confirmed(
         self,
@@ -393,7 +398,12 @@ class AppService:
         identity = self._resolve_identity(identity, channel)
         self._touch_user(identity, channel, payload)
         self._log_main_menu_visit(identity, channel)
-        return on_name_entered(user_name, channel, **self._menu_meta(identity))
+        return on_name_entered(
+            user_name,
+            channel,
+            is_registration=True,
+            **self._menu_meta(identity),
+        )
 
     def _handle_name_entered(
         self,

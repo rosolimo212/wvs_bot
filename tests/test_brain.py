@@ -16,6 +16,16 @@ def test_on_name_entered_has_four_menu_buttons() -> None:
     assert len(response.buttons) == 4
 
 
+def test_on_name_entered_registration_greeting() -> None:
+    response = on_name_entered("Анна", "streamlit", is_registration=True)
+    assert "Приятно познакомиться" in response.text
+
+
+def test_on_name_entered_return_greeting() -> None:
+    response = on_name_entered("Анна", "streamlit", is_registration=False)
+    assert "Рады, что вы вернулись" in response.text
+
+
 def test_match_menu_button_option_1() -> None:
     response = on_name_entered("Анна", "streamlit")
     matched = match_menu_button(response.buttons[0], "streamlit")
