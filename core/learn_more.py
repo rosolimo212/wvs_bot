@@ -11,7 +11,7 @@ from typing import Any
 from core.messages import back_to_learn_more_button, back_to_menu_button, message
 
 FAQ_PATH = Path(__file__).resolve().parents[1] / "data" / "learn_more_faq.json"
-LEARN_MORE_COUNT = 8
+LEARN_MORE_COUNT = 9
 
 
 @lru_cache(maxsize=1)

@@ -67,7 +67,7 @@ def test_learn_more_flow() -> None:
         {"text": button("menu_option_learn_more", "streamlit"), "screen": Screen.MAIN_MENU.value},
     )
     assert hub.screen == Screen.LEARN_MORE
-    assert len(hub.buttons) == 9
+    assert len(hub.buttons) == 10
     assert hub.buttons[0] == button("back_to_menu", "streamlit")
 
     answer = service.handle_action(
