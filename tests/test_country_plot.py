@@ -6,6 +6,7 @@ import pandas as pd
 from ui.country_plot import (
     CountryPlotPipelineTimings,
     build_country_plot,
+    build_country_plot_plotly,
     format_country_plot_timings,
     measure_country_plot_pipeline,
 )
@@ -34,6 +35,20 @@ def test_build_country_plot_returns_timings() -> None:
     plt.close(fig)
 
 
+def test_build_country_plot_plotly_returns_timings() -> None:
+    fig, timings = build_country_plot_plotly(
+        12.0,
+        10.0,
+        {"schema": "wvs"},
+        country_df=SAMPLE_COUNTRY_DATA,
+    )
+
+    assert fig is not None
+    assert len(fig.data) >= 2
+    assert timings.sql_ms >= 0
+    assert timings.processing_ms >= 0
+
+
 def test_format_country_plot_timings() -> None:
     report = format_country_plot_timings(
         CountryPlotPipelineTimings(
@@ -46,7 +61,7 @@ def test_format_country_plot_timings() -> None:
     )
     assert "SQL (country_data)" in report
     assert "Построение графика" in report
-    assert "Отрисовка (pyplot)" in report
+    assert "Отрисовка (PNG)" in report
     assert "Карточка страны" in report
     assert "Итого" in report
     assert "115 ms" in report

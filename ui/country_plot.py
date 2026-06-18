@@ -10,6 +10,8 @@ from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
 import seaborn as sns
 
 from core.analytics.sql import fetch_all_rows
@@ -30,6 +32,10 @@ ANNOTATE_COUNTRIES = [
     "ARG",
     "CAN",
 ]
+
+PLOT_TITLE = "Положение относительно других стран"
+PLOT_X_LABEL = "Традиционные/Секулярно-рациональные ценности"
+PLOT_Y_LABEL = "Ценности выживания/Самовыражения"
 
 
 @dataclass(frozen=True)
@@ -56,7 +62,7 @@ def format_country_plot_timings(timings: CountryPlotPipelineTimings) -> str:
             "Загрузка карты стран:",
             f"  1. SQL (country_data)      {timings.sql_ms:>5} ms",
             f"  2. Построение графика      {timings.processing_ms:>5} ms",
-            f"  3. Отрисовка (pyplot)      {timings.render_ms:>5} ms",
+            f"  3. Отрисовка (PNG)         {timings.render_ms:>5} ms",
             f"  4. Карточка страны         {timings.country_plot_loaded_ms:>5} ms",
             f"  ─────────────────────────────────",
             f"  Итого                      {timings.total_ms:>5} ms",
@@ -84,6 +90,29 @@ def load_country_data(
     return pd.DataFrame(rows, columns=["country_code", "country_rv", "country_sv", "cluster"])
 
 
+def _load_country_plot_dataframe(
+    user_sv: float,
+    user_rv: float,
+    logging_config: dict[str, Any],
+    *,
+    reference_schema: str = "wvs",
+    country_df: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame | None, int]:
+    sql_started = time.perf_counter()
+    if country_df is not None:
+        df = country_df
+    else:
+        df = load_country_data(logging_config, reference_schema=reference_schema)
+    sql_ms = int((time.perf_counter() - sql_started) * 1000)
+    if df is None or df.empty:
+        return None, sql_ms
+
+    df = df.copy()
+    df["country_rv"] = df["country_rv"].fillna(user_rv).astype(float)
+    df["country_sv"] = df["country_sv"].fillna(user_sv).astype(float)
+    return df, sql_ms
+
+
 def build_country_plot(
     user_sv: float,
     user_rv: float,
@@ -92,22 +121,20 @@ def build_country_plot(
     reference_schema: str = "wvs",
     country_df: pd.DataFrame | None = None,
 ) -> tuple[plt.Figure | None, CountryPlotTimings]:
+    """Статичный matplotlib-график (Telegram PNG и т.п.)."""
     started = time.perf_counter()
-
-    sql_started = time.perf_counter()
-    if country_df is not None:
-        df = country_df
-    else:
-        df = load_country_data(logging_config, reference_schema=reference_schema)
-    sql_ms = int((time.perf_counter() - sql_started) * 1000)
-    if df is None or df.empty:
+    df, sql_ms = _load_country_plot_dataframe(
+        user_sv,
+        user_rv,
+        logging_config,
+        reference_schema=reference_schema,
+        country_df=country_df,
+    )
+    if df is None:
         total_ms = int((time.perf_counter() - started) * 1000)
         return None, CountryPlotTimings(sql_ms=sql_ms, processing_ms=0, render_ms=0, total_ms=total_ms)
 
     processing_started = time.perf_counter()
-    df = df.copy()
-    df["country_rv"] = df["country_rv"].fillna(user_rv).astype(float)
-    df["country_sv"] = df["country_sv"].fillna(user_sv).astype(float)
     df["cluster"] = df["cluster"].astype("category")
 
     n_colors = len(df["cluster"].cat.categories)
@@ -141,11 +168,86 @@ def build_country_plot(
 
     ax.axvline(float(user_sv), color="red", linestyle="--", linewidth=1.5, zorder=200, label="Вы")
     ax.axhline(float(user_rv), color="red", linestyle="--", linewidth=1.5, zorder=200)
-    ax.set_title("Положение относительно других стран", fontsize=14)
-    ax.set_xlabel("Традиционные/Секулярно-рациональные ценности")
-    ax.set_ylabel("Ценности выживания/Самовыражения")
+    ax.set_title(PLOT_TITLE, fontsize=14)
+    ax.set_xlabel(PLOT_X_LABEL)
+    ax.set_ylabel(PLOT_Y_LABEL)
     ax.legend(bbox_to_anchor=(1.02, 1), loc="upper left")
     plt.tight_layout()
+    processing_ms = int((time.perf_counter() - processing_started) * 1000)
+    total_ms = int((time.perf_counter() - started) * 1000)
+    return fig, CountryPlotTimings(
+        sql_ms=sql_ms,
+        processing_ms=processing_ms,
+        render_ms=0,
+        total_ms=total_ms,
+    )
+
+
+def build_country_plot_plotly(
+    user_sv: float,
+    user_rv: float,
+    logging_config: dict[str, Any],
+    *,
+    reference_schema: str = "wvs",
+    country_df: pd.DataFrame | None = None,
+) -> tuple[go.Figure | None, CountryPlotTimings]:
+    """Интерактивный Plotly-график (Streamlit): hover по всем странам."""
+    started = time.perf_counter()
+    df, sql_ms = _load_country_plot_dataframe(
+        user_sv,
+        user_rv,
+        logging_config,
+        reference_schema=reference_schema,
+        country_df=country_df,
+    )
+    if df is None:
+        total_ms = int((time.perf_counter() - started) * 1000)
+        return None, CountryPlotTimings(sql_ms=sql_ms, processing_ms=0, render_ms=0, total_ms=total_ms)
+
+    processing_started = time.perf_counter()
+    plot_df = df.copy()
+    plot_df["cluster"] = plot_df["cluster"].astype(str)
+
+    fig = px.scatter(
+        plot_df,
+        x="country_sv",
+        y="country_rv",
+        color="cluster",
+        hover_name="country_code",
+        hover_data={
+            "country_code": False,
+            "country_sv": ":.2f",
+            "country_rv": ":.2f",
+            "cluster": True,
+        },
+        labels={
+            "country_sv": PLOT_X_LABEL,
+            "country_rv": PLOT_Y_LABEL,
+            "cluster": "Кластер",
+        },
+        title=PLOT_TITLE,
+    )
+    fig.update_traces(
+        marker=dict(size=11, opacity=0.9, line=dict(width=1, color="black")),
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[float(user_sv)],
+            y=[float(user_rv)],
+            mode="markers",
+            name="Вы",
+            marker=dict(size=14, color="red", symbol="x", line=dict(width=2, color="darkred")),
+            hovertemplate="Вы<br>SV: %{x:.2f}<br>RV: %{y:.2f}<extra></extra>",
+        )
+    )
+    fig.add_hline(y=float(user_rv), line_dash="dash", line_color="red", line_width=1.5)
+    fig.add_vline(x=float(user_sv), line_dash="dash", line_color="red", line_width=1.5)
+    fig.update_layout(
+        legend=dict(yanchor="top", y=1, xanchor="left", x=1.02),
+        hovermode="closest",
+        height=560,
+        margin=dict(r=120),
+    )
     processing_ms = int((time.perf_counter() - processing_started) * 1000)
     total_ms = int((time.perf_counter() - started) * 1000)
     return fig, CountryPlotTimings(

@@ -238,14 +238,14 @@ def run_streamlit(config: dict[str, Any]) -> None:
     ):
         logging_config = config.get("logging") if config.get("app", {}).get("logging_enabled") else None
         if logging_config:
-            from ui.country_plot import build_country_plot
+            from ui.country_plot import build_country_plot_plotly
 
             reference_schema = str(
                 config.get("analytics", {}).get("reference_schema")
                 or config.get("logging", {}).get("schema", "wvs")
             )
             total_started = time.perf_counter()
-            fig, build_timings = build_country_plot(
+            fig, build_timings = build_country_plot_plotly(
                 float(meta["user_sv"]),
                 float(meta["user_rv"]),
                 logging_config,
@@ -253,7 +253,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
             )
             if fig is not None:
                 render_started = time.perf_counter()
-                st.pyplot(fig)
+                st.plotly_chart(fig, use_container_width=True)
                 render_ms = int((time.perf_counter() - render_started) * 1000)
 
                 profile_started = time.perf_counter()
