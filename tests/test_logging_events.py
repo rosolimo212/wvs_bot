@@ -220,7 +220,11 @@ def test_faq_menu_and_page_visit_logged() -> None:
         },
     )
     assert logger.events[-1] == "faq_page_visit"
-    assert logger.event_parameters[-1]["screen_name"] == first_question
+    assert logger.event_parameters[-1] == {
+        "screen_name": first_question,
+        "learn_more_item": 1,
+        "faq_slug": "what_do_i_get",
+    }
 
     service.handle_action(
         identity,

@@ -12,7 +12,7 @@ from typing import Any
 from core.analytics.indices import compute_main_indices
 from core.analytics.country import find_nearest_country
 from core.analytics.position import find_age_position, find_gender_age_position, find_global_position
-from core.learn_more import learn_more_question_title
+from core.learn_more import LEARN_MORE_COUNT, learn_more_item_slug, learn_more_question_title
 from core.brain import (
     is_back_to_learn_more,
     is_back_to_menu,
@@ -52,6 +52,7 @@ from core.models import (
     ACTION_NAME_ENTERED,
     ACTION_LEARN_MORE,
     ACTION_LEARN_MORE_BACK,
+    ACTION_LEARN_MORE_ITEM,
     ACTION_OPTION_1,
     ACTION_OPTION_2,
     ACTION_OPTION_3,
@@ -146,13 +147,18 @@ class AppService:
         identity: UserIdentity,
         channel: str,
         *,
+        item: int,
         screen_name: str,
     ) -> None:
         self.logger.log_event(
             identity=identity,
             event_name="faq_page_visit",
             channel=channel,
-            event_parameters={"screen_name": screen_name},
+            event_parameters={
+                "screen_name": screen_name,
+                "learn_more_item": item,
+                "faq_slug": learn_more_item_slug(item, channel),
+            },
         )
 
     def _log_main_menu_click(
@@ -305,6 +311,12 @@ class AppService:
         if action == ACTION_LEARN_MORE_BACK:
             return self._handle_learn_more_back(identity, channel, payload)
 
+        if action == ACTION_LEARN_MORE_ITEM:
+            item = int(payload.get("learn_more_item") or 0)
+            if item < 1 or item > LEARN_MORE_COUNT:
+                return on_learn_more_reminder(channel)
+            return self._handle_learn_more_item(identity, channel, payload, item)
+
         if action == ACTION_OPTION_1:
             return self._handle_option_1(identity, channel, payload)
 
@@ -383,6 +395,9 @@ class AppService:
                 return self._handle_learn_more_back(identity, channel, payload)
             if is_back_to_menu(raw_text, channel):
                 return self._handle_back_to_menu(identity, channel, payload)
+            item = match_learn_more_question(raw_text, channel)
+            if item is not None:
+                return self._handle_learn_more_item(identity, channel, payload, item)
             item = int(payload.get("learn_more_item") or 0)
             if item:
                 self._touch_user(identity, channel, payload)
@@ -514,6 +529,7 @@ class AppService:
         self._log_faq_page_visit(
             identity,
             channel,
+            item=item,
             screen_name=learn_more_question_title(item, channel),
         )
         return on_learn_more_answer(item, channel)
