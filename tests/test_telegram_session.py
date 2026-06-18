@@ -17,3 +17,4 @@ def test_build_telegram_bot_without_proxy() -> None:
         }
     )
     assert bot.token == "123456:ABC"
+    assert bot.session.timeout == 90.0

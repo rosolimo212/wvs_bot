@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from aiohttp import ClientTimeout
 from aiogram import Bot
 from aiogram.client.session.aiohttp import AiohttpSession
 
@@ -25,10 +24,9 @@ def build_telegram_bot(config: dict[str, Any]) -> Bot:
     token = telegram_cfg["token"]
 
     proxy_url = str(telegram_cfg.get("proxy_url") or "").strip() or None
-    timeout_sec = int(telegram_cfg.get("request_timeout_sec", 60))
+    timeout_sec = float(telegram_cfg.get("request_timeout_sec", 60))
 
-    session = AiohttpSession(
-        proxy=proxy_url,
-        timeout=ClientTimeout(total=timeout_sec, connect=timeout_sec),
-    )
+    # aiogram хранит timeout как число (секунды) и складывает с polling_timeout;
+    # ClientTimeout здесь ломает start_polling.
+    session = AiohttpSession(proxy=proxy_url, timeout=timeout_sec)
     return Bot(token=token, session=session)
