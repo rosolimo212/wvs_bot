@@ -7,7 +7,7 @@ from core.analytics.country import NearestCountry
 from core.app import AppService
 from core.logging.noop import NoopLogger
 from core.messages import back_to_menu_button, button
-from core.models import ACTION_OPTION_2, ACTION_OPTION_3, ACTION_MAIN_ANSWER
+from core.models import ACTION_MAIN_ANSWER, ACTION_OPTION_2, ACTION_OPTION_3, Screen
 from core.questionnaire.memory import MemoryMainAnswerStore, MemorySecondaryAnswerStore
 
 
@@ -185,3 +185,50 @@ def test_find_country_start_logs_answer_text() -> None:
     idx = len(logger.events) - 1 - logger.events[::-1].index("find_counry_start")
     assert logger.event_parameters[idx]["answer"] == response.text
     assert "RUS" in logger.event_parameters[idx]["answer"]
+
+
+def test_faq_menu_and_page_visit_logged() -> None:
+    logger = RecordingLogger()
+    service = _service(logger)
+    identity = logger.ensure_user("streamlit", "ext-faq")
+    service.handle_action(identity, "streamlit", "name_entered", {"text": "Роман"})
+
+    hub = service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {
+            "text": button("menu_option_learn_more", "streamlit"),
+            "screen": Screen.MAIN_MENU.value,
+            "user_name": "Роман",
+        },
+    )
+    assert hub.screen == Screen.LEARN_MORE
+    assert logger.events[-1] == "faq_menu_visit"
+    assert logger.event_parameters[-1] == {}
+
+    service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {
+            "text": hub.buttons[0],
+            "screen": Screen.LEARN_MORE.value,
+            "user_name": "Роман",
+        },
+    )
+    assert logger.events[-1] == "faq_page_visit"
+    assert logger.event_parameters[-1]["screen_name"] == hub.buttons[0]
+
+    service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {
+            "text": button("back_to_learn_more", "streamlit"),
+            "screen": Screen.LEARN_MORE_ANSWER.value,
+            "user_name": "Роман",
+            "learn_more_item": 1,
+        },
+    )
+    assert logger.events[-1] == "faq_menu_visit"

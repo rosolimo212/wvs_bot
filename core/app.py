@@ -12,6 +12,7 @@ from typing import Any
 from core.analytics.indices import compute_main_indices
 from core.analytics.country import find_nearest_country
 from core.analytics.position import find_age_position, find_gender_age_position, find_global_position
+from core.learn_more import learn_more_question_title
 from core.brain import (
     is_back_to_learn_more,
     is_back_to_menu,
@@ -130,6 +131,28 @@ class AppService:
             event_name="main_menu_visit",
             channel=channel,
             event_parameters=None,
+        )
+
+    def _log_faq_menu_visit(self, identity: UserIdentity, channel: str) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="faq_menu_visit",
+            channel=channel,
+            event_parameters=None,
+        )
+
+    def _log_faq_page_visit(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        screen_name: str,
+    ) -> None:
+        self.logger.log_event(
+            identity=identity,
+            event_name="faq_page_visit",
+            channel=channel,
+            event_parameters={"screen_name": screen_name},
         )
 
     def _log_main_menu_click(
@@ -467,6 +490,7 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
+        self._log_faq_menu_visit(identity, channel)
         return on_learn_more_hub(channel)
 
     def _handle_learn_more_back(
@@ -476,6 +500,7 @@ class AppService:
         payload: dict[str, Any],
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
+        self._log_faq_menu_visit(identity, channel)
         return on_learn_more_hub(channel)
 
     def _handle_learn_more_item(
@@ -486,6 +511,11 @@ class AppService:
         item: int,
     ) -> AppResponse:
         self._touch_user(identity, channel, payload)
+        self._log_faq_page_visit(
+            identity,
+            channel,
+            screen_name=learn_more_question_title(item, channel),
+        )
         return on_learn_more_answer(item, channel)
 
     def _handle_option_1(
