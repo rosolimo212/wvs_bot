@@ -58,6 +58,23 @@ def answer_value(qv_id: str, answer_text: str) -> int:
     return -1
 
 
+UNKNOWN_ANSWER_WARN_THRESHOLD = 5
+
+
+def count_unknown_main_answers(answers: list[dict[str, Any]]) -> int:
+    """Считает ответы «Не знаю» (-1) в основной анкете."""
+    total = 0
+    for row in answers:
+        qv_id = str(row["qv_id"])
+        if answer_value(qv_id, str(row["answer_text"])) == -1:
+            total += 1
+    return total
+
+
+def should_warn_inaccurate_indices(unknown_count: int) -> bool:
+    return unknown_count > UNKNOWN_ANSWER_WARN_THRESHOLD
+
+
 def compute_indices_from_answers(answers: list[dict[str, Any]]) -> tuple[int, int] | None:
     """
     Считает RV и SV по уже загруженным ответам.

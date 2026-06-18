@@ -9,9 +9,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from core.analytics.indices import compute_main_indices
+from core.analytics.indices import (
+    compute_main_indices,
+    count_unknown_main_answers,
+    should_warn_inaccurate_indices,
+)
 from core.analytics.country import find_nearest_country
-from core.analytics.position import find_age_position, find_gender_age_position, find_global_position
+from core.analytics.position import compute_own_place
+from core.analytics.secondary_profile import parse_secondary_profile
 from core.learn_more import LEARN_MORE_COUNT, learn_more_item_slug, learn_more_question_title
 from core.brain import (
     is_back_to_learn_more,
@@ -24,6 +29,7 @@ from core.brain import (
     on_feature_locked,
     on_find_country,
     on_find_own_place,
+    on_find_own_place_need_secondary,
     on_analytics_no_data,
     on_learn_more_answer_reminder,
     on_learn_more_hub,
@@ -618,72 +624,108 @@ class AppService:
             self._log_find_own_place_start(identity, channel, answer=response.text)
             return response
 
+        if not self.is_secondary_questionary_complete(identity):
+            response = on_find_own_place_need_secondary(channel, **self._menu_meta(identity))
+            self._log_find_own_place_start(identity, channel, answer=response.text)
+            return response
+
         logging_config = self._logging_config()
         if logging_config is None:
             response = on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
             self._log_find_own_place_start(identity, channel, answer=response.text)
             return response
 
-        try:
-            global_pos = find_global_position(
-                identity.user_id,
-                logging_config,
-                reference_schema=self._reference_schema(),
-            )
-        except Exception:
-            global_pos = None
-        if global_pos is None:
+        indices = compute_main_indices(self.answer_store, identity.user_id)
+        if indices is None:
             response = on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
             self._log_find_own_place_start(identity, channel, answer=response.text)
             return response
 
-        parts = [
-            message(
-                "find_own_place_global",
-                channel,
-                rv=global_pos.rv,
-                sv=global_pos.sv,
-                rv_rank=global_pos.rv_rank,
-                sv_rank=global_pos.sv_rank,
-            )
-        ]
+        user_rv, user_sv = indices
+        unknown_count = count_unknown_main_answers(self.answer_store.list_answers(identity.user_id))
+        profile = parse_secondary_profile(
+            self.secondary_answer_store.list_answers(identity.user_id)
+        )
 
         try:
-            age_pos = find_age_position(
-                identity.user_id,
-                logging_config,
+            own_place = compute_own_place(
+                user_rv=float(user_rv),
+                user_sv=float(user_sv),
+                profile=profile,
+                logging_config=logging_config,
                 reference_schema=self._reference_schema(),
             )
         except Exception:
-            age_pos = None
-        if age_pos:
+            own_place = None
+
+        if own_place is None:
+            response = on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)
+            self._log_find_own_place_start(identity, channel, answer=response.text)
+            return response
+
+        ctx = own_place.context
+        parts: list[str] = []
+
+        if should_warn_inaccurate_indices(unknown_count):
+            parts.append(message("main_questionary_indices_inaccurate_warning", channel))
+
+        if ctx.user_country_missing_in_sample:
+            parts.append(
+                message(
+                    "find_own_place_country_missing",
+                    channel,
+                    country_text=profile.country_text or "",
+                )
+            )
+        elif ctx.used_default_country and not profile.country_text:
+            parts.append(message("find_own_place_country_default", channel))
+
+        parts.append(
+            message(
+                "find_own_place_global",
+                channel,
+                rv=own_place.global_pos.rv,
+                sv=own_place.global_pos.sv,
+                rv_rank=own_place.global_pos.rv_rank,
+                sv_rank=own_place.global_pos.sv_rank,
+                country_name=ctx.country_name,
+            )
+        )
+
+        if own_place.age_pos and not ctx.age_sample_too_small:
             parts.append(
                 message(
                     "find_own_place_age",
                     channel,
-                    rv_rank=age_pos.rv_rank,
-                    sv_rank=age_pos.sv_rank,
+                    rv_rank=own_place.age_pos.rv_rank,
+                    sv_rank=own_place.age_pos.sv_rank,
+                    country_name=ctx.country_name,
+                    age_window=ctx.age_window or 0,
+                )
+            )
+        elif profile.age is not None and ctx.age_sample_too_small:
+            parts.append(
+                message(
+                    "find_own_place_age_sample_small",
+                    channel,
+                    country_name=ctx.country_name,
+                    age_window=ctx.age_window or 0,
+                    sample_size=ctx.age_sample_size or 0,
                 )
             )
 
-        try:
-            gender_age_pos = find_gender_age_position(
-                identity.user_id,
-                logging_config,
-                reference_schema=self._reference_schema(),
-            )
-        except Exception:
-            gender_age_pos = None
-        if gender_age_pos:
+        if own_place.gender_age_pos:
             parts.append(
                 message(
                     "find_own_place_gender_age",
                     channel,
-                    rv_rank=gender_age_pos.rv_rank,
-                    sv_rank=gender_age_pos.sv_rank,
+                    rv_rank=own_place.gender_age_pos.rv_rank,
+                    sv_rank=own_place.gender_age_pos.sv_rank,
+                    country_name=ctx.country_name,
+                    age_window=ctx.age_window or 0,
                 )
             )
-        elif age_pos is None:
+        elif own_place.age_pos is None and profile.age is None:
             parts.append(message("find_own_place_secondary_hint", channel))
 
         result_text = "\n\n".join(parts)
@@ -806,9 +848,18 @@ class AppService:
         )
         if indices is None:
             rv, sv = 0, 0
+            unknown_count = 0
         else:
             rv, sv = indices
-        return on_main_questionary_complete(rv=rv, sv=sv, channel=channel)
+            unknown_count = count_unknown_main_answers(
+                self.answer_store.list_answers(identity.user_id)
+            )
+        return on_main_questionary_complete(
+            rv=rv,
+            sv=sv,
+            unknown_count=unknown_count,
+            channel=channel,
+        )
 
     def _show_secondary_question(
         self,
