@@ -121,7 +121,7 @@ def on_main_menu_reminder(
 def on_learn_more_hub(channel: str | None = None) -> AppResponse:
     return AppResponse(
         text=learn_more_hub_text(channel),
-        buttons=learn_more_question_buttons(channel),
+        buttons=[back_to_menu_button(channel), *learn_more_question_buttons(channel)],
         screen=Screen.LEARN_MORE,
     )
 
