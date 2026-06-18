@@ -353,6 +353,15 @@
       "browser": ""
     },
     {
+      "id": 47,
+      "name": "learn_more_intro",
+      "when": "Раздел «Узнать больше»: список вопросов.",
+      "default": "Выберите интересующий вопрос:",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
       "id": 46,
       "name": "telegram_plot_skipped",
       "when": "График страны недоступен в Telegram.",
@@ -363,6 +372,15 @@
     }
   ],
   "buttons": [
+    {
+      "id": 10,
+      "name": "menu_option_learn_more",
+      "when": "Главное меню: раздел «Узнать больше».",
+      "default": "Узнать больше",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
     {
       "id": 1,
       "name": "menu_option_1",
@@ -431,6 +449,15 @@
       "name": "custom_answer",
       "when": "Свой вариант ответа на вопрос анкеты.",
       "default": "✏️ Ввести свой ответ",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 11,
+      "name": "back_to_learn_more",
+      "when": "Возврат к списку вопросов «Узнать больше».",
+      "default": "К разделу «Узнать больше»",
       "console": "",
       "telegram": "",
       "browser": ""

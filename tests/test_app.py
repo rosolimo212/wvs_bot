@@ -56,6 +56,42 @@ def test_handle_start_returning_user_greeting() -> None:
     assert "Рады, что вы вернулись" in response.text
 
 
+def test_learn_more_flow() -> None:
+    service = _service()
+    identity = service.logger.ensure_user("streamlit", "ext-learn")
+    _register(service, identity)
+    hub = service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {"text": button("menu_option_learn_more", "streamlit"), "screen": Screen.MAIN_MENU.value},
+    )
+    assert hub.screen == Screen.LEARN_MORE
+    assert len(hub.buttons) == 8
+
+    answer = service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {"text": hub.buttons[0], "screen": Screen.LEARN_MORE.value, "user_name": "Роман"},
+    )
+    assert answer.screen == Screen.LEARN_MORE_ANSWER
+    assert "Что я получу" in answer.text
+
+    back = service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {
+            "text": button("back_to_learn_more", "streamlit"),
+            "screen": Screen.LEARN_MORE_ANSWER.value,
+            "user_name": "Роман",
+            "learn_more_item": 1,
+        },
+    )
+    assert back.screen == Screen.LEARN_MORE
+
+
 def test_register_user_greeting() -> None:
     service = _service()
     identity = service.logger.ensure_user("streamlit", "ext-reg-greet")

@@ -16,4 +16,4 @@ def test_message_start_intro() -> None:
 
 
 def test_menu_buttons_count() -> None:
-    assert len(menu_buttons("streamlit")) == 4
+    assert len(menu_buttons("streamlit")) == 5

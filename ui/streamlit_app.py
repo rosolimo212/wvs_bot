@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.messages import back_to_menu_button, button, message
+from core.messages import back_to_learn_more_button, back_to_menu_button, button, message
 from core.country_profiles import format_country_profile
 from core.models import (
     ACTION_BACK_TO_MENU,
@@ -30,6 +30,7 @@ from ui.helpers import (
     build_payload,
     get_identity,
     init_user_identity,
+    with_screen_context,
 )
 from ui.streamlit_cookies import persist_external_id_cookie, resolve_external_user_id
 
@@ -42,10 +43,15 @@ def _page_icon() -> str:
 
 
 def _streamlit_buttons_nav_first(buttons: list[str], channel: str = "streamlit") -> list[str]:
-    """Навигационные кнопки (в главное меню и т.п.) — первыми, слева."""
+    """Навигационные кнопки — первыми, слева."""
+    back_lm = back_to_learn_more_button(channel)
     back = back_to_menu_button(channel)
-    ordered = [back] if back in buttons else []
-    ordered.extend(label for label in buttons if label != back)
+    ordered: list[str] = []
+    if back_lm in buttons:
+        ordered.append(back_lm)
+    if back in buttons:
+        ordered.append(back)
+    ordered.extend(label for label in buttons if label not in (back_lm, back))
     return ordered
 
 
@@ -104,10 +110,13 @@ def _handle_user_input(service, state, text: str) -> None:
         identity,
         "streamlit",
         "raw",
-        {
-            **_registered_payload(state),
-            **build_payload(text=text, screen=screen),
-        },
+        with_screen_context(
+            state,
+            {
+                **_registered_payload(state),
+                **build_payload(text=text, screen=screen),
+            },
+        ),
     )
     apply_response(state, response)
 

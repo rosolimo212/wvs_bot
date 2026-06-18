@@ -58,6 +58,8 @@ class Flow(StatesGroup):
     start = State()
     name_confirm = State()
     main_menu = State()
+    learn_more = State()
+    learn_more_answer = State()
     main_questionary = State()
     secondary_questionary = State()
     analytics = State()
@@ -81,6 +83,10 @@ def _state_for_screen(screen: Screen) -> State:
         return Flow.start
     if screen == Screen.NAME_CONFIRM:
         return Flow.name_confirm
+    if screen == Screen.LEARN_MORE:
+        return Flow.learn_more
+    if screen == Screen.LEARN_MORE_ANSWER:
+        return Flow.learn_more_answer
     if screen == Screen.MAIN_QUESTIONARY:
         return Flow.main_questionary
     if screen == Screen.SECONDARY_QUESTIONARY:
@@ -252,6 +258,26 @@ async def run_telegram(config: dict[str, Any]) -> None:
 
     @dp.message(Flow.main_menu, F.text)
     async def on_main_menu(message: Message, state: FSMContext) -> None:
+        data = await state.get_data()
+        identity = _identity_from_data(data)
+        text = message.text or ""
+        handle_raw_input(service, identity, channel, data, text, config=config)
+        await state.update_data(**data)
+        await state.set_state(_state_for_screen(Screen(data["screen"])))
+        await _reply(message, state)
+
+    @dp.message(Flow.learn_more, F.text)
+    async def on_learn_more(message: Message, state: FSMContext) -> None:
+        data = await state.get_data()
+        identity = _identity_from_data(data)
+        text = message.text or ""
+        handle_raw_input(service, identity, channel, data, text, config=config)
+        await state.update_data(**data)
+        await state.set_state(_state_for_screen(Screen(data["screen"])))
+        await _reply(message, state)
+
+    @dp.message(Flow.learn_more_answer, F.text)
+    async def on_learn_more_answer(message: Message, state: FSMContext) -> None:
         data = await state.get_data()
         identity = _identity_from_data(data)
         text = message.text or ""

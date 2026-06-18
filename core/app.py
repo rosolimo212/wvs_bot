@@ -13,8 +13,10 @@ from core.analytics.indices import compute_main_indices
 from core.analytics.country import find_nearest_country
 from core.analytics.position import find_age_position, find_gender_age_position, find_global_position
 from core.brain import (
+    is_back_to_learn_more,
     is_back_to_menu,
     is_return_later,
+    match_learn_more_question,
     match_menu_button,
     on_change_name_prompt,
     on_empty_name,
@@ -22,6 +24,10 @@ from core.brain import (
     on_find_country,
     on_find_own_place,
     on_analytics_no_data,
+    on_learn_more_answer_reminder,
+    on_learn_more_hub,
+    on_learn_more_reminder,
+    on_learn_more_answer,
     on_main_answer_empty,
     on_main_answer_invalid,
     on_main_menu_reminder,
@@ -43,6 +49,8 @@ from core.models import (
     ACTION_NAME_CHANGE,
     ACTION_NAME_CONFIRMED,
     ACTION_NAME_ENTERED,
+    ACTION_LEARN_MORE,
+    ACTION_LEARN_MORE_BACK,
     ACTION_OPTION_1,
     ACTION_OPTION_2,
     ACTION_OPTION_3,
@@ -268,6 +276,12 @@ class AppService:
         if action == ACTION_NAME_CHANGE:
             return on_change_name_prompt(channel)
 
+        if action == ACTION_LEARN_MORE:
+            return self._handle_learn_more(identity, channel, payload)
+
+        if action == ACTION_LEARN_MORE_BACK:
+            return self._handle_learn_more_back(identity, channel, payload)
+
         if action == ACTION_OPTION_1:
             return self._handle_option_1(identity, channel, payload)
 
@@ -332,10 +346,32 @@ class AppService:
             if is_return_later(raw_text, channel):
                 return self._handle_secondary_return_later(identity, channel, payload)
 
+        if screen == Screen.LEARN_MORE.value or screen == Screen.LEARN_MORE:
+            if is_back_to_menu(raw_text, channel):
+                return self._handle_back_to_menu(identity, channel, payload)
+            item = match_learn_more_question(raw_text, channel)
+            if item is not None:
+                return self._handle_learn_more_item(identity, channel, payload, item)
+            self._touch_user(identity, channel, payload)
+            return on_learn_more_reminder(channel)
+
+        if screen == Screen.LEARN_MORE_ANSWER.value or screen == Screen.LEARN_MORE_ANSWER:
+            if is_back_to_learn_more(raw_text, channel):
+                return self._handle_learn_more_back(identity, channel, payload)
+            if is_back_to_menu(raw_text, channel):
+                return self._handle_back_to_menu(identity, channel, payload)
+            item = int(payload.get("learn_more_item") or 0)
+            if item:
+                self._touch_user(identity, channel, payload)
+                return on_learn_more_answer_reminder(item, channel)
+            return on_learn_more_reminder(channel)
+
         if is_back_to_menu(raw_text, channel):
             return self._handle_back_to_menu(identity, channel, payload)
 
         matched = match_menu_button(raw_text, channel)
+        if matched == "learn_more":
+            return self._handle_learn_more(identity, channel, payload)
         if matched == "option_1":
             return self._handle_option_1(identity, channel, payload)
         if matched == "option_2":
@@ -423,6 +459,34 @@ class AppService:
             registration_source="user_input",
             confirm=False,
         )
+
+    def _handle_learn_more(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+    ) -> AppResponse:
+        self._touch_user(identity, channel, payload)
+        return on_learn_more_hub(channel)
+
+    def _handle_learn_more_back(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+    ) -> AppResponse:
+        self._touch_user(identity, channel, payload)
+        return on_learn_more_hub(channel)
+
+    def _handle_learn_more_item(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        payload: dict[str, Any],
+        item: int,
+    ) -> AppResponse:
+        self._touch_user(identity, channel, payload)
+        return on_learn_more_answer(item, channel)
 
     def _handle_option_1(
         self,

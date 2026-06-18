@@ -11,7 +11,7 @@ from core.models import Screen
 
 START_WIDGET_KEYS = ("name_input", "btn_start")
 MAIN_MENU_BUTTON_KEY_PREFIX = "btn_menu_"
-MAIN_MENU_BUTTON_COUNT = 4
+MAIN_MENU_BUTTON_COUNT = 5
 
 START_MESSAGE_NAMES = ("browser_name_label", "browser_btn_continue")
 HEADER_MESSAGE_NAMES = ("browser_page_title", "browser_title")

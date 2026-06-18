@@ -28,7 +28,7 @@ from core.models import (
     Screen,
     UserIdentity,
 )
-from ui.helpers import apply_response, build_payload
+from ui.helpers import apply_response, build_payload, with_screen_context
 
 
 def registered_payload(state: dict[str, Any]) -> dict[str, Any]:
@@ -132,10 +132,13 @@ def handle_raw_input(
             identity,
             channel,
             "raw",
-            {
-                **registered_payload(state),
-                **build_payload(text=text, screen=screen),
-            },
+            with_screen_context(
+                state,
+                {
+                    **registered_payload(state),
+                    **build_payload(text=text, screen=screen),
+                },
+            ),
         )
     apply_response(state, response)
     if config is not None:

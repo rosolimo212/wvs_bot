@@ -78,6 +78,7 @@ def button(
 
 def menu_buttons(channel: str | None = None, *, path: str | None = None) -> list[str]:
     return [
+        button("menu_option_learn_more", channel, path=path),
         button("menu_option_1", channel, path=path),
         button("menu_option_2", channel, path=path),
         button("menu_option_3", channel, path=path),
@@ -87,6 +88,10 @@ def menu_buttons(channel: str | None = None, *, path: str | None = None) -> list
 
 def back_to_menu_button(channel: str | None = None) -> str:
     return button("back_to_menu", channel)
+
+
+def back_to_learn_more_button(channel: str | None = None) -> str:
+    return button("back_to_learn_more", channel)
 
 
 def confirm_name_button(channel: str | None = None) -> str:

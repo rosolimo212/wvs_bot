@@ -44,6 +44,15 @@ def build_payload(
     return payload
 
 
+def with_screen_context(state: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    """Добавить в payload контекст текущего экрана из session state."""
+    merged = dict(payload)
+    learn_more_item = (state.get("meta") or {}).get("learn_more_item")
+    if learn_more_item is not None:
+        merged["learn_more_item"] = learn_more_item
+    return merged
+
+
 def apply_response(
     state: dict[str, Any],
     response: AppResponse,

@@ -10,11 +10,21 @@ from typing import Any
 
 from core.questionnaire.loader import question_input_mode
 
+from core.learn_more import (
+    is_back_to_learn_more,
+    learn_more_answer_buttons,
+    learn_more_answer_text,
+    learn_more_hub_text,
+    learn_more_question_buttons,
+    learn_more_question_title,
+    match_learn_more_question,
+)
 from core.messages import (
     BACK_TO_MENU_BUTTON,
     CHANGE_NAME_BUTTON,
     CONFIRM_NAME_BUTTON,
     MENU_BUTTONS,
+    back_to_learn_more_button,
     back_to_menu_button,
     change_name_button,
     confirm_name_button,
@@ -106,6 +116,36 @@ def on_main_menu_reminder(
         screen=Screen.MAIN_MENU,
         meta={"main_questionary_complete": main_questionary_complete},
     )
+
+
+def on_learn_more_hub(channel: str | None = None) -> AppResponse:
+    return AppResponse(
+        text=learn_more_hub_text(channel),
+        buttons=learn_more_question_buttons(channel),
+        screen=Screen.LEARN_MORE,
+    )
+
+
+def on_learn_more_answer(item: int, channel: str | None = None) -> AppResponse:
+    title = learn_more_question_title(item, channel)
+    body = learn_more_answer_text(item, channel)
+    return AppResponse(
+        text=f"**{title}**\n\n{body}",
+        buttons=learn_more_answer_buttons(channel),
+        screen=Screen.LEARN_MORE_ANSWER,
+        meta={"learn_more_item": item},
+    )
+
+
+def on_learn_more_reminder(channel: str | None = None) -> AppResponse:
+    return on_learn_more_hub(channel)
+
+
+def on_learn_more_answer_reminder(
+    item: int,
+    channel: str | None = None,
+) -> AppResponse:
+    return on_learn_more_answer(item, channel)
 
 
 def on_feature_stub(channel: str | None = None, *, screen: Screen) -> AppResponse:
@@ -299,10 +339,11 @@ def match_menu_button(text: str, channel: str | None = None) -> str | None:
     normalized = text.strip().casefold()
     buttons = menu_buttons(channel)
     mapping = {
-        buttons[0].casefold(): "option_1",
-        buttons[1].casefold(): "option_2",
-        buttons[2].casefold(): "option_3",
-        buttons[3].casefold(): "option_4",
+        buttons[0].casefold(): "learn_more",
+        buttons[1].casefold(): "option_1",
+        buttons[2].casefold(): "option_2",
+        buttons[3].casefold(): "option_3",
+        buttons[4].casefold(): "option_4",
     }
     return mapping.get(normalized)
 
@@ -322,9 +363,17 @@ __all__ = [
     "MENU_BUTTONS",
     "estimate_minutes",
     "format_display_name",
+    "is_back_to_learn_more",
     "is_back_to_menu",
     "is_return_later",
+    "learn_more_answer_buttons",
+    "learn_more_question_buttons",
+    "match_learn_more_question",
     "match_menu_button",
+    "on_learn_more_answer",
+    "on_learn_more_hub",
+    "on_learn_more_answer_reminder",
+    "on_learn_more_reminder",
     "on_change_name_prompt",
     "on_empty_name",
     "on_feature_locked",
