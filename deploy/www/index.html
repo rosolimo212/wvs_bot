@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>World Values Survey Bot</title>
+  <style>
+    :root { --text: #1a1a1a; --muted: #555; --link: #2563eb; --bg: #fafafa; --card: #fff; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      line-height: 1.55;
+      color: var(--text);
+      background: var(--bg);
+    }
+    main {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 3rem;
+    }
+    h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
+    .lead { color: var(--muted); margin: 0 0 1.5rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    h2 { font-size: 1rem; margin: 0 0 0.75rem; }
+    ul { margin: 0; padding-left: 1.25rem; }
+    li { margin: 0.35rem 0; }
+    .cta { margin: 1.5rem 0; }
+    .cta a {
+      display: inline-block;
+      margin-right: 0.75rem;
+      margin-bottom: 0.5rem;
+      padding: 0.6rem 1.1rem;
+      background: var(--link);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .cta a.secondary {
+      background: #fff;
+      color: var(--link);
+      border: 1px solid var(--link);
+    }
+    .badge {
+      font-size: 0.75rem;
+      color: var(--muted);
+      font-weight: normal;
+    }
+    .note, footer { font-size: 0.85rem; color: var(--muted); }
+    footer { margin-top: 2rem; border-top: 1px solid #e5e5e5; padding-top: 1rem; }
+    a { color: var(--link); }
+    hr { border: none; border-top: 1px solid #e5e5e5; margin: 1.5rem 0; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>World Values Survey Bot</h1>
+    <p class="lead">
+      Короткая анкета в духе <a href="https://www.worldvaluessurvey.org/">World Values Survey</a>:
+      индексы ценностей (RV/SV), ближайшая страна и место среди выборки.
+    </p>
+
+    <div class="cta">
+      <a href="http://streamlit.worldvaluessurveybot.info/">Пройти опрос (веб)</a>
+      <a class="secondary" href="https://t.me/values_counter_bot">
+        Telegram @values_counter_bot
+        <span class="badge">— в разработке</span>
+      </a>
+    </div>
+
+    <div class="card">
+      <h2>Что умеет бот</h2>
+      <ul>
+        <li>Основная анкета — 13 вопросов</li>
+        <li>Дополнительная — о респонденте</li>
+        <li>Найти страну по ценностям</li>
+        <li>Место в обществе (сравнение с выборкой WVS)</li>
+      </ul>
+    </div>
+
+    <p class="note">
+      Это <strong>не</strong> официальный сайт WVS — пилотный инструмент для обучения и исследований.
+    </p>
+
+    <hr>
+
+    <h1 lang="en">World Values Survey Bot</h1>
+    <p class="lead" lang="en">
+      A short WVS-style questionnaire with instant feedback: value indices, nearest country, rank in the reference sample.
+    </p>
+    <div class="cta">
+      <a href="http://streamlit.worldvaluessurveybot.info/">Take the survey (web)</a>
+      <a class="secondary" href="https://t.me/values_counter_bot">
+        Telegram @values_counter_bot
+        <span class="badge">— in development</span>
+      </a>
+    </div>
+
+    <footer>
+      <a href="https://www.worldvaluessurvey.org/">worldvaluessurvey.org</a>
+    </footer>
+  </main>
+</body>
+</html>

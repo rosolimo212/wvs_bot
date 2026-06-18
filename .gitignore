@@ -231,6 +231,9 @@ venv/
 *.tar
 *.gz
 *.html
+# Лендинг для продакшена (deploy/nginx-landing.conf)
+!deploy/www/
+!deploy/www/**
 *.ipynb
 
 # Marimo
