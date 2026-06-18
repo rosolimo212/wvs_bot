@@ -34,9 +34,17 @@ def format_display_name(user_name: str, *, with_at: bool = False) -> str:
     return clean
 
 
+def compose_start_screen_text(channel: str | None = None, *, ask_name: bool = True) -> str:
+    """Вводный текст о боте и, при необходимости, приглашение представиться."""
+    intro = message("start_intro", channel)
+    if not ask_name:
+        return intro
+    return f"{intro}\n\n{message('start_ask_name', channel)}"
+
+
 def on_start(channel: str | None = None) -> AppResponse:
     return AppResponse(
-        text=message("start_ask_name", channel),
+        text=compose_start_screen_text(channel),
         buttons=[],
         screen=Screen.START,
     )
@@ -68,8 +76,9 @@ def on_name_entered(
 
 def on_telegram_name_confirm(user_name: str, channel: str | None = None) -> AppResponse:
     display = format_display_name(user_name, with_at=True)
+    confirm = message("telegram_name_confirm", channel, display=display)
     return AppResponse(
-        text=message("telegram_name_confirm", channel, display=display),
+        text=f"{message('start_intro', channel)}\n\n{confirm}",
         buttons=[
             confirm_name_button(channel),
             change_name_button(channel),

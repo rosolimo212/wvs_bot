@@ -7,6 +7,7 @@ from core.models import Screen
 def test_on_start_screen() -> None:
     response = on_start("streamlit")
     assert response.screen == Screen.START
+    assert "world values survey" in response.text.casefold()
     assert "зовут" in response.text.casefold()
 
 

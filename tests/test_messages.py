@@ -8,5 +8,12 @@ def test_message_start_ask_name() -> None:
     assert "зовут" in text.casefold()
 
 
+def test_message_start_intro() -> None:
+    text = message("start_intro", "streamlit")
+    assert "привет" in text.casefold()
+    assert "world values survey" in text.casefold()
+    assert "инглхарат" in text.casefold()
+
+
 def test_menu_buttons_count() -> None:
     assert len(menu_buttons("streamlit")) == 4
