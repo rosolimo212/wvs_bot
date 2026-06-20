@@ -121,7 +121,7 @@ def on_main_menu_reminder(
 def on_learn_more_hub(channel: str | None = None) -> AppResponse:
     return AppResponse(
         text=learn_more_hub_text(channel),
-        buttons=learn_more_question_buttons(channel),
+        buttons=[back_to_menu_button(channel), *learn_more_question_buttons(channel)],
         screen=Screen.LEARN_MORE,
     )
 
@@ -207,12 +207,17 @@ def on_main_questionary_complete(
     rv: int,
     sv: int,
     channel: str | None = None,
+    unknown_count: int = 0,
 ) -> AppResponse:
     intro = message("main_questionary_complete_intro", channel)
     indices = message("main_questionary_indices", channel, rv=rv, sv=sv)
+    parts = [intro, indices]
+    if unknown_count > 5:
+        parts.append(message("main_questionary_indices_inaccurate_warning", channel))
     outro = message("main_questionary_complete_outro", channel)
+    parts.append(outro)
     return AppResponse(
-        text=f"{intro}\n\n{indices}\n\n{outro}",
+        text="\n\n".join(parts),
         buttons=menu_buttons(channel),
         screen=Screen.MAIN_MENU,
         meta={"main_questionary_complete": True},
@@ -311,6 +316,19 @@ def on_find_own_place(text: str, channel: str | None = None) -> AppResponse:
     )
 
 
+def on_find_own_place_need_secondary(
+    channel: str | None = None,
+    *,
+    main_questionary_complete: bool = False,
+) -> AppResponse:
+    return AppResponse(
+        text=message("find_own_place_need_secondary", channel),
+        buttons=menu_buttons(channel),
+        screen=Screen.MAIN_MENU,
+        meta={"main_questionary_complete": main_questionary_complete},
+    )
+
+
 def on_analytics_no_data(channel: str | None = None, *, screen: Screen) -> AppResponse:
     return AppResponse(
         text=message("analytics_no_data", channel),
@@ -380,6 +398,7 @@ __all__ = [
     "on_feature_stub",
     "on_find_country",
     "on_find_own_place",
+    "on_find_own_place_need_secondary",
     "on_analytics_no_data",
     "on_main_answer_empty",
     "on_main_answer_invalid",

@@ -67,13 +67,14 @@ def test_learn_more_flow() -> None:
         {"text": button("menu_option_learn_more", "streamlit"), "screen": Screen.MAIN_MENU.value},
     )
     assert hub.screen == Screen.LEARN_MORE
-    assert len(hub.buttons) == 8
+    assert len(hub.buttons) == 10
+    assert hub.buttons[0] == button("back_to_menu", "streamlit")
 
     answer = service.handle_action(
         identity,
         "streamlit",
         "raw",
-        {"text": hub.buttons[0], "screen": Screen.LEARN_MORE.value, "user_name": "Роман"},
+        {"text": hub.buttons[1], "screen": Screen.LEARN_MORE.value, "user_name": "Роман"},
     )
     assert answer.screen == Screen.LEARN_MORE_ANSWER
     assert "Что я получу" in answer.text

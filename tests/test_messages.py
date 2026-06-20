@@ -5,7 +5,7 @@ from core.messages import menu_buttons, message
 
 def test_message_start_ask_name() -> None:
     text = message("start_ask_name", "streamlit")
-    assert "зовут" in text.casefold()
+    assert "запомним" in text.casefold()
 
 
 def test_message_start_intro() -> None:

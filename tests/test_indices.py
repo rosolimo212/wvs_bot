@@ -20,5 +20,5 @@ def test_compute_indices_sums_groups() -> None:
         {"qv_id": "Q17", "answer_text": "Трудолюбие"},
     ]
     rv, sv = compute_indices_from_answers(answers)
-    assert rv == 2
+    assert rv == 4  # Q17=2, Q11=2 (оба из текста «Трудолюбие»)
     assert sv == 2

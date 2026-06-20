@@ -8,7 +8,7 @@ def test_on_start_screen() -> None:
     response = on_start("streamlit")
     assert response.screen == Screen.START
     assert "world values survey" in response.text.casefold()
-    assert "зовут" in response.text.casefold()
+    assert "запомним" in response.text.casefold()
 
 
 def test_on_name_entered_has_five_menu_buttons() -> None:

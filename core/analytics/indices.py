@@ -18,7 +18,7 @@
     SV — ценности выживания / самовыражения.
 
 Риски:
-    Особая обработка Q17 (текстовый ответ) и варианта «Не знаю» — см. answer_value().
+    Особая обработка Q11/Q17 (текст про качества детей) и «Не знаю» — см. answer_value().
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from core.analytics.child_qualities import text_mentions_imagination, text_mentions_obedience
 from core.questionnaire.base import MainAnswerStore
 
 # Вопросы, входящие в индекс RV (см. questions.json, секция main_questions).
@@ -48,12 +49,30 @@ def answer_value(qv_id: str, answer_text: str) -> int:
     if lower in {"не знаю", "-1. не знаю"} or text.startswith("-1."):
         return -1
     if qv_id == "Q17":
-        # Текстовый вопрос: «послушание» → 1, остальное → 2.
-        return 1 if "ослуш" in lower else 2
+        return 1 if text_mentions_obedience(text) else 2
+    if qv_id == "Q11":
+        return 1 if text_mentions_imagination(text) else 2
     match = _NUMBER_RE.match(text.lstrip())
     if match:
         return int(match.group(0))
     return -1
+
+
+UNKNOWN_ANSWER_WARN_THRESHOLD = 5
+
+
+def count_unknown_main_answers(answers: list[dict[str, Any]]) -> int:
+    """Считает ответы «Не знаю» (-1) в основной анкете."""
+    total = 0
+    for row in answers:
+        qv_id = str(row["qv_id"])
+        if answer_value(qv_id, str(row["answer_text"])) == -1:
+            total += 1
+    return total
+
+
+def should_warn_inaccurate_indices(unknown_count: int) -> bool:
+    return unknown_count > UNKNOWN_ANSWER_WARN_THRESHOLD
 
 
 def compute_indices_from_answers(answers: list[dict[str, Any]]) -> tuple[int, int] | None:
@@ -63,19 +82,31 @@ def compute_indices_from_answers(answers: list[dict[str, Any]]) -> tuple[int, in
     :param answers: записи с ключами qv_id, answer_text
     :return: (rv, sv) или None, если нет ответов обеих групп
     """
+    by_id = {str(row["qv_id"]): str(row["answer_text"]) for row in answers}
+    child_qualities_text = by_id.get("Q17") or by_id.get("Q11")
+
     rv = 0
     sv = 0
     has_rv = False
     has_sv = False
+    counted_rv: set[str] = set()
     for row in answers:
         qv_id = str(row["qv_id"])
         value = answer_value(qv_id, str(row["answer_text"]))
         if qv_id in RV_QV_IDS:
             rv += value
             has_rv = True
+            counted_rv.add(qv_id)
         elif qv_id in SV_QV_IDS:
             sv += value
             has_sv = True
+
+    if "Q11" in RV_QV_IDS and "Q11" not in counted_rv and child_qualities_text:
+        rv += answer_value("Q11", child_qualities_text)
+        has_rv = True
+    if "Q17" in RV_QV_IDS and "Q17" not in counted_rv and child_qualities_text:
+        rv += answer_value("Q17", child_qualities_text)
+        has_rv = True
     if not has_rv or not has_sv:
         return None
     return rv, sv

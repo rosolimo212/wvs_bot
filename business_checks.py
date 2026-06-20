@@ -190,6 +190,66 @@ def _answer_all_main(service: AppService, identity: UserIdentity, channel: str, 
         )
 
 
+def _answer_all_secondary(service: AppService, identity: UserIdentity, channel: str, payload: dict) -> None:
+    service.handle_action(identity, channel, ACTION_OPTION_2, payload)
+    for question in service._secondary_questions:
+        if question["id"] == "S01":
+            answer = "1990"
+            selected = ""
+        elif question["id"] == "S02":
+            answer = "Россия"
+            selected = answer
+        elif question["id"] == "S03":
+            answer = "Мужчина"
+            selected = answer
+        else:
+            variant = question["variants"][0]
+            answer = variant
+            selected = variant
+        service.handle_action(
+            identity,
+            channel,
+            ACTION_SECONDARY_ANSWER,
+            {
+                **payload,
+                "selected": selected,
+                "answer": answer,
+            },
+        )
+
+
+def _mock_own_place() -> "OwnPlaceResult":
+    from core.analytics.position import OwnPlaceContext, OwnPlaceResult, UserPosition
+
+    return OwnPlaceResult(
+        global_pos=UserPosition(rv=10.0, sv=12.0, rv_rank=55, sv_rank=60),
+        context=OwnPlaceContext(
+            country_code="RUS",
+            country_name="Россия",
+            used_default_country=False,
+            user_country_missing_in_sample=False,
+            age_window=3,
+            age_sample_size=100,
+            age_sample_too_small=False,
+        ),
+        age_pos=UserPosition(rv=10.0, sv=12.0, rv_rank=50, sv_rank=52),
+        gender_age_pos=None,
+    )
+    service.handle_action(identity, channel, ACTION_OPTION_1, payload)
+    for question in service._main_questions:
+        variant = question["variants"][0]
+        service.handle_action(
+            identity,
+            channel,
+            ACTION_MAIN_ANSWER,
+            {
+                **payload,
+                "selected": variant,
+                "answer": variant,
+            },
+        )
+
+
 def _run_full_scenario(service: AppService, logger: MemoryLogger, channel: str) -> UserIdentity:
     identity = logger.ensure_user(channel, "biz-check-user-1")
     service.handle_start(identity, channel)
@@ -201,18 +261,7 @@ def _run_full_scenario(service: AppService, logger: MemoryLogger, channel: str) 
 
     _answer_all_main(service, identity, channel, payload)
 
-    service.handle_action(identity, channel, ACTION_OPTION_2, payload)
-    first_secondary = service._secondary_questions[0]["variants"][0]
-    service.handle_action(
-        identity,
-        channel,
-        ACTION_SECONDARY_ANSWER,
-        {
-            **payload,
-            "selected": first_secondary,
-            "answer": first_secondary,
-        },
-    )
+    _answer_all_secondary(service, identity, channel, payload)
 
     nearest = NearestCountry(
         rv=10.0,
@@ -221,14 +270,11 @@ def _run_full_scenario(service: AppService, logger: MemoryLogger, channel: str) 
         country_rv=9.5,
         country_sv=11.5,
     )
-    position = UserPosition(rv=10.0, sv=12.0, rv_rank=55, sv_rank=60)
 
     with patch("core.app.find_nearest_country", return_value=nearest):
         service.handle_action(identity, channel, ACTION_OPTION_3, payload)
-    with patch("core.app.find_global_position", return_value=position):
-        with patch("core.app.find_age_position", return_value=None):
-            with patch("core.app.find_gender_age_position", return_value=None):
-                service.handle_action(identity, channel, ACTION_OPTION_4, payload)
+    with patch("core.app.compute_own_place", return_value=_mock_own_place()):
+        service.handle_action(identity, channel, ACTION_OPTION_4, payload)
 
     service.handle_action(
         identity,
@@ -276,24 +322,21 @@ def check_all_menu_buttons_clickable() -> None:
     _answer_all_main(service, identity, "streamlit", payload)
 
     nearest = NearestCountry(10.0, 12.0, "RUS", 9.5, 11.5)
-    position = UserPosition(10.0, 12.0, 50, 50)
     with patch("core.app.find_nearest_country", return_value=nearest):
-        with patch("core.app.find_global_position", return_value=position):
-            with patch("core.app.find_age_position", return_value=None):
-                with patch("core.app.find_gender_age_position", return_value=None):
-                    for label in MENU_BUTTONS:
-                        resp = service.handle_action(
-                            identity,
-                            "streamlit",
-                            "raw",
-                            {
-                                **payload,
-                                "text": label,
-                                "screen": Screen.MAIN_MENU.value,
-                            },
-                        )
-                        if not resp.text.strip():
-                            raise AssertionError(f"Пустой ответ на кнопку: {label!r}")
+        with patch("core.app.compute_own_place", return_value=_mock_own_place()):
+            for label in MENU_BUTTONS:
+                resp = service.handle_action(
+                    identity,
+                    "streamlit",
+                    "raw",
+                    {
+                        **payload,
+                        "text": label,
+                        "screen": Screen.MAIN_MENU.value,
+                    },
+                )
+                if not resp.text.strip():
+                    raise AssertionError(f"Пустой ответ на кнопку: {label!r}")
 
 
 def check_all_events_logged() -> None:
@@ -361,11 +404,8 @@ def check_scenario_latency_under_limit() -> None:
     started = time.monotonic()
     with patch("core.app.find_nearest_country") as mock_country:
         mock_country.return_value = NearestCountry(10.0, 12.0, "RUS", 9.5, 11.5)
-        with patch("core.app.find_global_position") as mock_global:
-            mock_global.return_value = UserPosition(10.0, 12.0, 50, 50)
-            with patch("core.app.find_age_position", return_value=None):
-                with patch("core.app.find_gender_age_position", return_value=None):
-                    _run_full_scenario(service, logger, "streamlit")
+        with patch("core.app.compute_own_place", return_value=_mock_own_place()):
+            _run_full_scenario(service, logger, "streamlit")
     elapsed = time.monotonic() - started
     if elapsed >= MAX_LATENCY_SEC:
         raise AssertionError(f"Сценарий занял {elapsed:.2f} с")

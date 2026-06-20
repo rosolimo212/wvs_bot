@@ -204,21 +204,27 @@ def test_faq_menu_and_page_visit_logged() -> None:
         },
     )
     assert hub.screen == Screen.LEARN_MORE
+    assert hub.buttons[0] == back_to_menu_button("streamlit")
     assert logger.events[-1] == "faq_menu_visit"
     assert logger.event_parameters[-1] == {}
 
+    first_question = hub.buttons[1]
     service.handle_action(
         identity,
         "streamlit",
         "raw",
         {
-            "text": hub.buttons[0],
+            "text": first_question,
             "screen": Screen.LEARN_MORE.value,
             "user_name": "Роман",
         },
     )
     assert logger.events[-1] == "faq_page_visit"
-    assert logger.event_parameters[-1]["screen_name"] == hub.buttons[0]
+    assert logger.event_parameters[-1] == {
+        "screen_name": first_question,
+        "learn_more_item": 1,
+        "faq_slug": "what_do_i_get",
+    }
 
     service.handle_action(
         identity,
@@ -232,3 +238,34 @@ def test_faq_menu_and_page_visit_logged() -> None:
         },
     )
     assert logger.events[-1] == "faq_menu_visit"
+
+
+def test_faq_hub_back_to_main_menu_logged() -> None:
+    logger = RecordingLogger()
+    service = _service(logger)
+    identity = logger.ensure_user("streamlit", "ext-faq-menu")
+    service.handle_action(identity, "streamlit", "name_entered", {"text": "Роман"})
+    service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {
+            "text": button("menu_option_learn_more", "streamlit"),
+            "screen": Screen.MAIN_MENU.value,
+            "user_name": "Роман",
+        },
+    )
+
+    service.handle_action(
+        identity,
+        "streamlit",
+        "raw",
+        {
+            "text": back_to_menu_button("streamlit"),
+            "screen": Screen.LEARN_MORE.value,
+            "user_name": "Роман",
+        },
+    )
+
+    assert logger.events[-2:] == ["main_menu_click", "main_menu_visit"]
+    assert logger.event_parameters[-2]["screen"] == Screen.LEARN_MORE.value

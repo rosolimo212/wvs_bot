@@ -15,8 +15,10 @@ if str(ROOT) not in sys.path:
 
 from core.messages import back_to_learn_more_button, back_to_menu_button, button, message
 from core.country_profiles import format_country_profile
+from core.learn_more import match_learn_more_question
 from core.models import (
     ACTION_BACK_TO_MENU,
+    ACTION_LEARN_MORE_ITEM,
     ACTION_MAIN_ANSWER,
     ACTION_MAIN_RETURN_LATER,
     ACTION_NAME_ENTERED,
@@ -331,6 +333,22 @@ def run_streamlit(config: dict[str, Any]) -> None:
                         },
                     )
                     apply_response(state, response)
+                elif screen in (Screen.LEARN_MORE.value, Screen.LEARN_MORE_ANSWER.value):
+                    faq_item = match_learn_more_question(label, "streamlit")
+                    if faq_item is not None:
+                        response = service.handle_action(
+                            identity,
+                            "streamlit",
+                            ACTION_LEARN_MORE_ITEM,
+                            {
+                                **_registered_payload(state),
+                                **build_payload(screen=screen),
+                                "learn_more_item": faq_item,
+                            },
+                        )
+                        apply_response(state, response)
+                    else:
+                        _handle_user_input(service, state, label)
                 else:
                     _handle_user_input(service, state, label)
                 state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
