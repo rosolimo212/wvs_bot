@@ -1,0 +1,385 @@
+# coding: utf-8
+"""
+Импорт данных legacy Telegram-бота (схема tl) в prod-таблицы wvs.
+
+Legacy:
+    user_id в ответах и событиях — числовой Telegram ID (строка).
+    События в tl.wvs_events: user_id, event_type, parameters, insert_time.
+
+Новая схема:
+    users + events + user_answers + user_reviews.
+    user_id = sha256("telegram:" + external_user_id).
+"""
+
+from __future__ import annotations
+
+import csv
+import json
+import re
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from core.db import postgres_connection
+from core.identity import make_user_id
+
+LEGACY_CHANNEL = "telegram"
+MAIN_ANSWER_COLUMNS = (
+    "user_id",
+    "user_name",
+    "qv_id",
+    "qv_number",
+    "qv_text",
+    "answer_text",
+)
+REVIEW_COLUMNS = MAIN_ANSWER_COLUMNS
+EVENT_COLUMNS = ("user_id", "event_type", "parameters", "timestamp")
+
+LEGACY_EVENT_MAP: dict[str, str | None] = {
+    "main_menu": "main_menu_visit",
+    "main_questionary": "main_questionary_start",
+    "secondary_questionary": "secondary_questionary_start",
+    "record_answer": "answer_sent",
+    "questions_finished": None,
+    "secondary_questions_finished": None,
+    "find_country": "find_counry_start",
+    "find_position": "find_own_place_start",
+}
+
+_SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+@dataclass
+class LegacyImportStats:
+    users_created: int = 0
+    users_skipped: int = 0
+    main_answers: int = 0
+    reviews: int = 0
+    events_imported: int = 0
+    events_skipped: int = 0
+
+
+@dataclass
+class LegacyUserRecord:
+    legacy_user_id: str
+    external_user_id: str
+    user_id: str
+    user_name: str
+    registration_date: datetime
+    last_active_at: datetime
+
+
+def _parse_timestamp(value: str | None) -> datetime | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    for fmt in (
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d",
+    ):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _normalize_legacy_user_id(raw: str) -> tuple[str, str]:
+    """
+    Возвращает (legacy_user_id, external_user_id).
+
+    Если в CSV уже лежит sha256 user_id нового формата — external_id неизвестен,
+    импорт пользователя для таких строк пропускается (answers/events не привязать).
+    """
+    legacy = str(raw).strip()
+    if _SHA256_RE.fullmatch(legacy):
+        return legacy, ""
+    return legacy, legacy
+
+
+def map_legacy_user_id(legacy_user_id: str) -> str:
+    """Новый PK users из legacy Telegram ID."""
+    _, external = _normalize_legacy_user_id(legacy_user_id)
+    if not external:
+        return legacy_user_id
+    return make_user_id(LEGACY_CHANNEL, external)
+
+
+def _parse_event_parameters(raw: str | None) -> dict[str, Any] | None:
+    if raw is None:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return {"legacy_raw": text}
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, list):
+        if not parsed:
+            return None
+        first = parsed[0]
+        if isinstance(first, dict):
+            return first
+        return {"legacy_list": parsed}
+    return {"legacy_value": parsed}
+
+
+def map_legacy_event(event_type: str, parameters: dict[str, Any] | None) -> tuple[str | None, dict[str, Any] | None]:
+    mapped = LEGACY_EVENT_MAP.get(event_type.strip())
+    if mapped is None and event_type.strip() not in LEGACY_EVENT_MAP:
+        return event_type.strip(), parameters
+    if mapped is None:
+        return None, None
+    params = dict(parameters or {})
+    if mapped == "answer_sent" and "qv_number" not in params and "qv_id" in params:
+        params["qv_number"] = params["qv_id"]
+    return mapped, params or None
+
+
+def _read_csv_rows(path: Path) -> list[dict[str, str]]:
+    with path.open("r", encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        return [dict(row) for row in reader]
+
+
+def _allocate_internal_user_id(conn: Any, schema: str) -> int:
+    table_name = f"{schema}.users"
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_get_serial_sequence(%s, %s)", (table_name, "internal_user_id"))
+        seq_row = cur.fetchone()
+        if seq_row is None or not seq_row[0]:
+            raise RuntimeError(f"Не найден sequence для {table_name}.internal_user_id")
+        cur.execute("SELECT nextval(%s)", (seq_row[0],))
+        row = cur.fetchone()
+    if row is None:
+        raise RuntimeError("postgres не вернул internal_user_id")
+    return int(row[0])
+
+
+def _collect_users_from_rows(
+    *row_groups: list[dict[str, str]],
+) -> dict[str, LegacyUserRecord]:
+    users: dict[str, LegacyUserRecord] = {}
+    now = datetime.now()
+
+    for rows in row_groups:
+        for row in rows:
+            legacy_raw = str(row.get("user_id", "")).strip()
+            if not legacy_raw:
+                continue
+            legacy_id, external_id = _normalize_legacy_user_id(legacy_raw)
+            if not external_id:
+                continue
+
+            user_name = str(row.get("user_name", "")).strip() or external_id
+            ts = _parse_timestamp(row.get("insert_time") or row.get("timestamp")) or now
+            key = external_id
+            mapped_user_id = make_user_id(LEGACY_CHANNEL, external_id)
+
+            if key not in users:
+                users[key] = LegacyUserRecord(
+                    legacy_user_id=legacy_id,
+                    external_user_id=external_id,
+                    user_id=mapped_user_id,
+                    user_name=user_name,
+                    registration_date=ts,
+                    last_active_at=ts,
+                )
+                continue
+
+            record = users[key]
+            if len(user_name) > len(record.user_name):
+                record.user_name = user_name
+            if ts < record.registration_date:
+                record.registration_date = ts
+            if ts > record.last_active_at:
+                record.last_active_at = ts
+
+    return users
+
+
+def import_legacy_bot(
+    logging_config: dict[str, Any],
+    *,
+    main_answers_csv: Path,
+    reviews_csv: Path,
+    events_csv: Path,
+    dry_run: bool = False,
+) -> LegacyImportStats:
+    schema = logging_config["schema"]
+    main_rows = _read_csv_rows(main_answers_csv)
+    review_rows = _read_csv_rows(reviews_csv)
+    event_rows = _read_csv_rows(events_csv)
+    users = _collect_users_from_rows(main_rows, review_rows, event_rows)
+    stats = LegacyImportStats()
+
+    if dry_run:
+        stats.users_created = len(users)
+        stats.main_answers = len(main_rows)
+        stats.reviews = len(review_rows)
+        for row in event_rows:
+            event_name, _ = map_legacy_event(
+                str(row.get("event_type", "")),
+                _parse_event_parameters(row.get("parameters")),
+            )
+            if event_name:
+                stats.events_imported += 1
+            else:
+                stats.events_skipped += 1
+        return stats
+
+    user_id_map: dict[str, str] = {}
+    for record in users.values():
+        user_id_map[record.legacy_user_id] = record.user_id
+        user_id_map[record.external_user_id] = record.user_id
+
+    with postgres_connection(logging_config) as conn:
+        existing: set[str] = set()
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT external_user_id
+                FROM {schema}.users
+                WHERE registration_channel = %s
+                """,
+                (LEGACY_CHANNEL,),
+            )
+            existing = {str(row[0]) for row in cur.fetchall()}
+
+        for record in users.values():
+            if record.external_user_id in existing:
+                stats.users_skipped += 1
+                continue
+            internal_user_id = _allocate_internal_user_id(conn, schema)
+            with conn.cursor() as cur:
+                cur.execute(
+                    f"""
+                    INSERT INTO {schema}.users (
+                        user_id, internal_user_id, external_user_id, user_name,
+                        registration_date, registration_channel, last_active_at
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    ON CONFLICT (user_id) DO NOTHING
+                    """,
+                    (
+                        record.user_id,
+                        internal_user_id,
+                        record.external_user_id,
+                        record.user_name,
+                        record.registration_date,
+                        LEGACY_CHANNEL,
+                        record.last_active_at,
+                    ),
+                )
+                if cur.rowcount:
+                    stats.users_created += 1
+                else:
+                    stats.users_skipped += 1
+
+        def _resolve_user_id(raw: str) -> str | None:
+            legacy_raw = str(raw).strip()
+            if not legacy_raw:
+                return None
+            if legacy_raw in user_id_map:
+                return user_id_map[legacy_raw]
+            mapped = map_legacy_user_id(legacy_raw)
+            if _SHA256_RE.fullmatch(legacy_raw):
+                return mapped if mapped else None
+            return mapped
+
+        def _insert_answers(rows: list[dict[str, str]], table: str) -> int:
+            inserted = 0
+            with conn.cursor() as cur:
+                for row in rows:
+                    new_user_id = _resolve_user_id(str(row.get("user_id", "")))
+                    if not new_user_id:
+                        continue
+                    qv_number = int(str(row.get("qv_number", "0")).strip() or 0)
+                    if qv_number <= 0:
+                        continue
+                    insert_time = _parse_timestamp(row.get("insert_time")) or datetime.now()
+                    cur.execute(
+                        f"""
+                        INSERT INTO {schema}.{table}
+                            (user_id, user_name, qv_id, qv_number, qv_text, answer_text, insert_time)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (user_id, qv_number) DO UPDATE SET
+                            user_name = EXCLUDED.user_name,
+                            qv_id = EXCLUDED.qv_id,
+                            qv_text = EXCLUDED.qv_text,
+                            answer_text = EXCLUDED.answer_text,
+                            insert_time = EXCLUDED.insert_time
+                        """,
+                        (
+                            new_user_id,
+                            str(row.get("user_name", "")).strip() or new_user_id[:8],
+                            str(row.get("qv_id", "")).strip(),
+                            qv_number,
+                            str(row.get("qv_text", "")).strip(),
+                            str(row.get("answer_text", "")).strip(),
+                            insert_time,
+                        ),
+                    )
+                    inserted += 1
+            return inserted
+
+        stats.main_answers = _insert_answers(main_rows, "user_answers")
+        stats.reviews = _insert_answers(review_rows, "user_reviews")
+
+        internal_by_user: dict[str, int] = {}
+        external_by_user: dict[str, str] = {}
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT user_id, internal_user_id, external_user_id
+                FROM {schema}.users
+                WHERE registration_channel = %s
+                """,
+                (LEGACY_CHANNEL,),
+            )
+            for user_id, internal_user_id, external_user_id in cur.fetchall():
+                internal_by_user[str(user_id)] = int(internal_user_id)
+                external_by_user[str(user_id)] = str(external_user_id)
+
+        with conn.cursor() as cur:
+            for row in event_rows:
+                legacy_raw = str(row.get("user_id", "")).strip()
+                new_user_id = _resolve_user_id(legacy_raw)
+                if not new_user_id or new_user_id not in internal_by_user:
+                    stats.events_skipped += 1
+                    continue
+                event_name, params = map_legacy_event(
+                    str(row.get("event_type", "")),
+                    _parse_event_parameters(row.get("parameters")),
+                )
+                if not event_name:
+                    stats.events_skipped += 1
+                    continue
+                event_time = _parse_timestamp(row.get("timestamp") or row.get("insert_time")) or datetime.now()
+                cur.execute(
+                    f"""
+                    INSERT INTO {schema}.events (
+                        timestamp, user_id, internal_user_id, external_user_id,
+                        event_name, channel, event_parameters
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        event_time,
+                        new_user_id,
+                        internal_by_user[new_user_id],
+                        external_by_user[new_user_id],
+                        event_name,
+                        LEGACY_CHANNEL,
+                        json.dumps(params, ensure_ascii=False) if params is not None else None,
+                    ),
+                )
+                stats.events_imported += 1
+
+    return stats

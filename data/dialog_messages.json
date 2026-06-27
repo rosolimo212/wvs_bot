@@ -254,6 +254,51 @@
       "browser": ""
     },
     {
+      "id": 53,
+      "name": "find_own_place_bot_intro",
+      "when": "Заголовок блока сравнения с другими пользователями бота.",
+      "default": "**Сравнение с другими пользователями этого бота**",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 54,
+      "name": "find_own_place_bot_global",
+      "when": "Место среди других пользователей бота из той же страны.",
+      "default": "Среди {other_users_count} других пользователей бота из {country_name}:\n— индекс традиционных/секулярных ценностей ({rv}) выше, чем у {rv_rank}%;\n— индекс выживания/самовыражения ({sv}) выше, чем у {sv_rank}%.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 55,
+      "name": "find_own_place_bot_age",
+      "when": "Место среди пользователей бота того же возраста.",
+      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) из {country_name}: {rv_rank}% и {sv_rank}% соответственно.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 56,
+      "name": "find_own_place_bot_gender_age",
+      "when": "Место среди пользователей бота того же возраста и пола.",
+      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) и пола из {country_name}: {rv_rank}% и {sv_rank}%.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 57,
+      "name": "find_own_place_bot_age_sample_small",
+      "when": "Мало пользователей бота в возрастной группе.",
+      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) из {country_name} пока слишком мало людей ({sample_size}), чтобы сравнить вас с ровесниками.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
       "id": 29,
       "name": "analytics_no_data",
       "when": "Нет данных для аналитики (анкета не заполнена или нет подключения к БД).",

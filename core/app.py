@@ -654,6 +654,7 @@ class AppService:
                 profile=profile,
                 logging_config=logging_config,
                 reference_schema=self._reference_schema(),
+                exclude_user_id=identity.user_id,
             )
         except Exception:
             own_place = None
@@ -727,6 +728,53 @@ class AppService:
             )
         elif own_place.age_pos is None and profile.age is None:
             parts.append(message("find_own_place_secondary_hint", channel))
+
+        if own_place.bot and own_place.bot.global_pos:
+            parts.append(message("find_own_place_bot_intro", channel))
+            parts.append(
+                message(
+                    "find_own_place_bot_global",
+                    channel,
+                    rv=own_place.global_pos.rv,
+                    sv=own_place.global_pos.sv,
+                    rv_rank=own_place.bot.global_pos.rv_rank,
+                    sv_rank=own_place.bot.global_pos.sv_rank,
+                    country_name=ctx.country_name,
+                    other_users_count=own_place.bot.other_users_count,
+                )
+            )
+            if own_place.bot.age_pos and not own_place.bot.age_sample_too_small:
+                parts.append(
+                    message(
+                        "find_own_place_bot_age",
+                        channel,
+                        rv_rank=own_place.bot.age_pos.rv_rank,
+                        sv_rank=own_place.bot.age_pos.sv_rank,
+                        country_name=ctx.country_name,
+                        age_window=own_place.bot.age_window or 0,
+                    )
+                )
+            elif profile.age is not None and own_place.bot.age_sample_too_small:
+                parts.append(
+                    message(
+                        "find_own_place_bot_age_sample_small",
+                        channel,
+                        country_name=ctx.country_name,
+                        age_window=own_place.bot.age_window or 0,
+                        sample_size=own_place.bot.age_sample_size or 0,
+                    )
+                )
+            if own_place.bot.gender_age_pos:
+                parts.append(
+                    message(
+                        "find_own_place_bot_gender_age",
+                        channel,
+                        rv_rank=own_place.bot.gender_age_pos.rv_rank,
+                        sv_rank=own_place.bot.gender_age_pos.sv_rank,
+                        country_name=ctx.country_name,
+                        age_window=own_place.bot.age_window or 0,
+                    )
+                )
 
         result_text = "\n\n".join(parts)
         self._log_find_own_place_start(identity, channel, answer=result_text)

@@ -234,20 +234,8 @@ def _mock_own_place() -> "OwnPlaceResult":
         ),
         age_pos=UserPosition(rv=10.0, sv=12.0, rv_rank=50, sv_rank=52),
         gender_age_pos=None,
+        bot=None,
     )
-    service.handle_action(identity, channel, ACTION_OPTION_1, payload)
-    for question in service._main_questions:
-        variant = question["variants"][0]
-        service.handle_action(
-            identity,
-            channel,
-            ACTION_MAIN_ANSWER,
-            {
-                **payload,
-                "selected": variant,
-                "answer": variant,
-            },
-        )
 
 
 def _run_full_scenario(service: AppService, logger: MemoryLogger, channel: str) -> UserIdentity:

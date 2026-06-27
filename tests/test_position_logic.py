@@ -3,11 +3,14 @@ from __future__ import annotations
 from core.analytics.country_lookup import build_country_alias_catalog, resolve_country_code
 from core.analytics.indices import count_unknown_main_answers, should_warn_inaccurate_indices
 from core.analytics.position import (
+    BotUserRow,
     GenSampleRow,
     _choose_age_rows,
+    _choose_bot_age_rows,
+    _compute_bot_comparison,
     rank_percent,
 )
-from core.analytics.secondary_profile import parse_secondary_profile
+from core.analytics.secondary_profile import SecondaryProfile, parse_secondary_profile
 
 
 def test_count_unknown_main_answers() -> None:
@@ -91,3 +94,33 @@ def test_parse_secondary_profile() -> None:
     assert profile.country_text == "Германия"
     assert profile.gender == "Женщина"
     assert profile.has_demographics
+
+
+def test_choose_bot_age_window_uses_lower_threshold() -> None:
+    rows = [
+        BotUserRow("u1", "RUS", 10.0, 12.0, 40, 1),
+        BotUserRow("u2", "RUS", 11.0, 13.0, 41, 2),
+    ]
+    window, filtered, too_small = _choose_bot_age_rows(rows, age=40)
+    assert window == 3
+    assert len(filtered) == 2
+    assert too_small is False
+
+
+def test_compute_bot_comparison_excludes_empty_country() -> None:
+    profile = SecondaryProfile(birth_year=1990, country_text="Россия", gender="Женщина")
+    bot_rows = [
+        BotUserRow("u1", "RUS", 8.0, 9.0, 35, 2),
+        BotUserRow("u2", "RUS", 12.0, 14.0, 36, 2),
+    ]
+    result = _compute_bot_comparison(
+        user_rv=10.0,
+        user_sv=12.0,
+        profile=profile,
+        country_code="RUS",
+        bot_rows=bot_rows,
+    )
+    assert result is not None
+    assert result.other_users_count == 2
+    assert result.global_pos is not None
+    assert result.global_pos.rv_rank == 50
