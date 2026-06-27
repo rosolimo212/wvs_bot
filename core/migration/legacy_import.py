@@ -13,6 +13,7 @@ Legacy:
 
 from __future__ import annotations
 
+import ast
 import csv
 import json
 import re
@@ -58,6 +59,8 @@ class LegacyImportStats:
     reviews: int = 0
     events_imported: int = 0
     events_skipped: int = 0
+    events_skipped_no_user: int = 0
+    events_skipped_unmapped: int = 0
 
 
 @dataclass
@@ -116,10 +119,14 @@ def _parse_event_parameters(raw: str | None) -> dict[str, Any] | None:
     text = str(raw).strip()
     if not text:
         return None
+    parsed: Any
     try:
         parsed = json.loads(text)
     except json.JSONDecodeError:
-        return {"legacy_raw": text}
+        try:
+            parsed = ast.literal_eval(text)
+        except (SyntaxError, ValueError):
+            return {"legacy_raw": text}
     if isinstance(parsed, dict):
         return parsed
     if isinstance(parsed, list):
@@ -254,6 +261,117 @@ def _collect_users_from_rows(
     return users
 
 
+def _load_user_maps_by_external_ids(
+    conn: Any,
+    schema: str,
+    external_ids: set[str],
+) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
+    """
+    Возвращает:
+        internal_by_user[user_id]
+        external_by_user[user_id]
+        user_id_by_external[external_user_id] — предпочитает registration_channel=telegram
+    """
+    internal_by_user: dict[str, int] = {}
+    external_by_user: dict[str, str] = {}
+    user_id_by_external: dict[str, str] = {}
+    channel_by_external: dict[str, str] = {}
+
+    if not external_ids:
+        return internal_by_user, external_by_user, user_id_by_external
+
+    with conn.cursor() as cur:
+        cur.execute(
+            f"""
+            SELECT user_id, internal_user_id, external_user_id, registration_channel
+            FROM {schema}.users
+            WHERE external_user_id = ANY(%s)
+            """,
+            (sorted(external_ids),),
+        )
+        for user_id, internal_user_id, external_user_id, registration_channel in cur.fetchall():
+            uid = str(user_id)
+            ext = str(external_user_id)
+            channel = str(registration_channel)
+            internal_by_user[uid] = int(internal_user_id)
+            external_by_user[uid] = ext
+            prev_channel = channel_by_external.get(ext)
+            if ext not in user_id_by_external or (
+                prev_channel != LEGACY_CHANNEL and channel == LEGACY_CHANNEL
+            ):
+                user_id_by_external[ext] = uid
+                channel_by_external[ext] = channel
+
+    return internal_by_user, external_by_user, user_id_by_external
+
+
+def _import_events(
+    conn: Any,
+    schema: str,
+    event_rows: list[dict[str, str]],
+    user_id_map: dict[str, str],
+    stats: LegacyImportStats,
+) -> None:
+    external_ids = {
+        str(row.get("user_id", "")).strip()
+        for row in event_rows
+        if str(row.get("user_id", "")).strip()
+    }
+    internal_by_user, external_by_user, user_id_by_external = _load_user_maps_by_external_ids(
+        conn,
+        schema,
+        external_ids,
+    )
+
+    with conn.cursor() as cur:
+        for row in event_rows:
+            legacy_raw = str(row.get("user_id", "")).strip()
+            if not legacy_raw:
+                stats.events_skipped += 1
+                stats.events_skipped_no_user += 1
+                continue
+
+            new_user_id = user_id_by_external.get(legacy_raw)
+            if not new_user_id:
+                new_user_id = user_id_map.get(legacy_raw) or map_legacy_user_id(legacy_raw)
+            if new_user_id not in internal_by_user:
+                stats.events_skipped += 1
+                stats.events_skipped_no_user += 1
+                continue
+
+            event_name, params = map_legacy_event(
+                str(row.get("event_type", "")),
+                _parse_event_parameters(row.get("parameters")),
+            )
+            if not event_name:
+                stats.events_skipped += 1
+                stats.events_skipped_unmapped += 1
+                continue
+
+            event_time = (
+                _parse_timestamp(row.get("timestamp") or row.get("insert_time"))
+                or datetime.now()
+            )
+            cur.execute(
+                f"""
+                INSERT INTO {schema}.events (
+                    timestamp, user_id, internal_user_id, external_user_id,
+                    event_name, channel, event_parameters
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    event_time,
+                    new_user_id,
+                    internal_by_user[new_user_id],
+                    external_by_user[new_user_id],
+                    event_name,
+                    LEGACY_CHANNEL,
+                    json.dumps(params, ensure_ascii=False) if params is not None else None,
+                ),
+            )
+            stats.events_imported += 1
+
+
 def import_legacy_bot(
     logging_config: dict[str, Any],
     *,
@@ -262,22 +380,24 @@ def import_legacy_bot(
     reviews_csv: Path,
     events_csv: Path,
     dry_run: bool = False,
+    events_only: bool = False,
 ) -> LegacyImportStats:
     schema = logging_config["schema"]
     user_rows = _read_csv_rows(users_csv) if users_csv else []
-    main_rows = _read_csv_rows(main_answers_csv)
-    review_rows = _read_csv_rows(reviews_csv)
+    main_rows = _read_csv_rows(main_answers_csv) if not events_only else []
+    review_rows = _read_csv_rows(reviews_csv) if not events_only else []
     event_rows = _read_csv_rows(events_csv)
 
     users = _collect_users_from_users_csv(user_rows)
-    users = _merge_user_records(
-        users,
-        _collect_users_from_rows(main_rows, review_rows, event_rows),
-    )
+    if not events_only:
+        users = _merge_user_records(
+            users,
+            _collect_users_from_rows(main_rows, review_rows, event_rows),
+        )
     stats = LegacyImportStats()
 
     if dry_run:
-        stats.users_created = len(users)
+        stats.users_created = len(users) if not events_only else 0
         stats.main_answers = len(main_rows)
         stats.reviews = len(review_rows)
         for row in event_rows:
@@ -289,6 +409,7 @@ def import_legacy_bot(
                 stats.events_imported += 1
             else:
                 stats.events_skipped += 1
+                stats.events_skipped_unmapped += 1
         return stats
 
     user_id_map: dict[str, str] = {}
@@ -297,144 +418,98 @@ def import_legacy_bot(
         user_id_map[record.external_user_id] = record.user_id
 
     with postgres_connection(logging_config) as conn:
-        existing: set[str] = set()
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT external_user_id
-                FROM {schema}.users
-                WHERE registration_channel = %s
-                """,
-                (LEGACY_CHANNEL,),
-            )
-            existing = {str(row[0]) for row in cur.fetchall()}
-
-        for record in users.values():
-            if record.external_user_id in existing:
-                stats.users_skipped += 1
-                continue
-            internal_user_id = _allocate_internal_user_id(conn, schema)
+        if not events_only:
+            existing: set[str] = set()
             with conn.cursor() as cur:
                 cur.execute(
                     f"""
-                    INSERT INTO {schema}.users (
-                        user_id, internal_user_id, external_user_id, user_name,
-                        registration_date, registration_channel, last_active_at
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (user_id) DO NOTHING
+                    SELECT external_user_id
+                    FROM {schema}.users
+                    WHERE registration_channel = %s
                     """,
-                    (
-                        record.user_id,
-                        internal_user_id,
-                        record.external_user_id,
-                        record.user_name,
-                        record.registration_date,
-                        LEGACY_CHANNEL,
-                        record.last_active_at,
-                    ),
+                    (LEGACY_CHANNEL,),
                 )
-                if cur.rowcount:
-                    stats.users_created += 1
-                else:
+                existing = {str(row[0]) for row in cur.fetchall()}
+
+            for record in users.values():
+                if record.external_user_id in existing:
                     stats.users_skipped += 1
-
-        def _resolve_user_id(raw: str) -> str | None:
-            legacy_raw = str(raw).strip()
-            if not legacy_raw:
-                return None
-            if legacy_raw in user_id_map:
-                return user_id_map[legacy_raw]
-            mapped = map_legacy_user_id(legacy_raw)
-            if _SHA256_RE.fullmatch(legacy_raw):
-                return mapped if mapped else None
-            return mapped
-
-        def _insert_answers(rows: list[dict[str, str]], table: str) -> int:
-            inserted = 0
-            with conn.cursor() as cur:
-                for row in rows:
-                    new_user_id = _resolve_user_id(str(row.get("user_id", "")))
-                    if not new_user_id:
-                        continue
-                    qv_number = int(str(row.get("qv_number", "0")).strip() or 0)
-                    if qv_number <= 0:
-                        continue
-                    insert_time = _parse_timestamp(row.get("insert_time")) or datetime.now()
+                    continue
+                internal_user_id = _allocate_internal_user_id(conn, schema)
+                with conn.cursor() as cur:
                     cur.execute(
                         f"""
-                        INSERT INTO {schema}.{table}
-                            (user_id, user_name, qv_id, qv_number, qv_text, answer_text, insert_time)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        ON CONFLICT (user_id, qv_number) DO UPDATE SET
-                            user_name = EXCLUDED.user_name,
-                            qv_id = EXCLUDED.qv_id,
-                            qv_text = EXCLUDED.qv_text,
-                            answer_text = EXCLUDED.answer_text,
-                            insert_time = EXCLUDED.insert_time
+                        INSERT INTO {schema}.users (
+                            user_id, internal_user_id, external_user_id, user_name,
+                            registration_date, registration_channel, last_active_at
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        ON CONFLICT (user_id) DO NOTHING
                         """,
                         (
-                            new_user_id,
-                            str(row.get("user_name", "")).strip() or new_user_id[:8],
-                            str(row.get("qv_id", "")).strip(),
-                            qv_number,
-                            str(row.get("qv_text", "")).strip(),
-                            str(row.get("answer_text", "")).strip(),
-                            insert_time,
+                            record.user_id,
+                            internal_user_id,
+                            record.external_user_id,
+                            record.user_name,
+                            record.registration_date,
+                            LEGACY_CHANNEL,
+                            record.last_active_at,
                         ),
                     )
-                    inserted += 1
-            return inserted
+                    if cur.rowcount:
+                        stats.users_created += 1
+                    else:
+                        stats.users_skipped += 1
 
-        stats.main_answers = _insert_answers(main_rows, "user_answers")
-        stats.reviews = _insert_answers(review_rows, "user_reviews")
+            def _resolve_user_id(raw: str) -> str | None:
+                legacy_raw = str(raw).strip()
+                if not legacy_raw:
+                    return None
+                if legacy_raw in user_id_map:
+                    return user_id_map[legacy_raw]
+                mapped = map_legacy_user_id(legacy_raw)
+                if _SHA256_RE.fullmatch(legacy_raw):
+                    return mapped if mapped else None
+                return mapped
 
-        internal_by_user: dict[str, int] = {}
-        external_by_user: dict[str, str] = {}
-        with conn.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT user_id, internal_user_id, external_user_id
-                FROM {schema}.users
-                WHERE registration_channel = %s
-                """,
-                (LEGACY_CHANNEL,),
-            )
-            for user_id, internal_user_id, external_user_id in cur.fetchall():
-                internal_by_user[str(user_id)] = int(internal_user_id)
-                external_by_user[str(user_id)] = str(external_user_id)
+            def _insert_answers(rows: list[dict[str, str]], table: str) -> int:
+                inserted = 0
+                with conn.cursor() as cur:
+                    for row in rows:
+                        new_user_id = _resolve_user_id(str(row.get("user_id", "")))
+                        if not new_user_id:
+                            continue
+                        qv_number = int(str(row.get("qv_number", "0")).strip() or 0)
+                        if qv_number <= 0:
+                            continue
+                        insert_time = _parse_timestamp(row.get("insert_time")) or datetime.now()
+                        cur.execute(
+                            f"""
+                            INSERT INTO {schema}.{table}
+                                (user_id, user_name, qv_id, qv_number, qv_text, answer_text, insert_time)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            ON CONFLICT (user_id, qv_number) DO UPDATE SET
+                                user_name = EXCLUDED.user_name,
+                                qv_id = EXCLUDED.qv_id,
+                                qv_text = EXCLUDED.qv_text,
+                                answer_text = EXCLUDED.answer_text,
+                                insert_time = EXCLUDED.insert_time
+                            """,
+                            (
+                                new_user_id,
+                                str(row.get("user_name", "")).strip() or new_user_id[:8],
+                                str(row.get("qv_id", "")).strip(),
+                                qv_number,
+                                str(row.get("qv_text", "")).strip(),
+                                str(row.get("answer_text", "")).strip(),
+                                insert_time,
+                            ),
+                        )
+                        inserted += 1
+                return inserted
 
-        with conn.cursor() as cur:
-            for row in event_rows:
-                legacy_raw = str(row.get("user_id", "")).strip()
-                new_user_id = _resolve_user_id(legacy_raw)
-                if not new_user_id or new_user_id not in internal_by_user:
-                    stats.events_skipped += 1
-                    continue
-                event_name, params = map_legacy_event(
-                    str(row.get("event_type", "")),
-                    _parse_event_parameters(row.get("parameters")),
-                )
-                if not event_name:
-                    stats.events_skipped += 1
-                    continue
-                event_time = _parse_timestamp(row.get("timestamp") or row.get("insert_time")) or datetime.now()
-                cur.execute(
-                    f"""
-                    INSERT INTO {schema}.events (
-                        timestamp, user_id, internal_user_id, external_user_id,
-                        event_name, channel, event_parameters
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (
-                        event_time,
-                        new_user_id,
-                        internal_by_user[new_user_id],
-                        external_by_user[new_user_id],
-                        event_name,
-                        LEGACY_CHANNEL,
-                        json.dumps(params, ensure_ascii=False) if params is not None else None,
-                    ),
-                )
-                stats.events_imported += 1
+            stats.main_answers = _insert_answers(main_rows, "user_answers")
+            stats.reviews = _insert_answers(review_rows, "user_reviews")
+
+        _import_events(conn, schema, event_rows, user_id_map, stats)
 
     return stats

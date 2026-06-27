@@ -88,30 +88,46 @@ def main() -> int:
         action="store_true",
         help="Только подсчёт строк без записи в БД",
     )
+    parser.add_argument(
+        "--events-only",
+        action="store_true",
+        help="Повторно импортировать только events (users/answers не трогать)",
+    )
     args = parser.parse_args()
 
-    paths = (args.users, args.main_answers, args.reviews, args.events)
-    for path in paths:
-        if path and not path.is_file():
-            print(f"Файл не найден: {path}", file=sys.stderr)
+    paths = (args.main_answers, args.reviews, args.events)
+    if not args.events_only:
+        if args.users and not args.users.is_file():
+            print(f"Файл не найден: {args.users}", file=sys.stderr)
             return 1
+        for path in (args.main_answers, args.reviews):
+            if not path.is_file():
+                print(f"Файл не найден: {path}", file=sys.stderr)
+                return 1
+    if not args.events.is_file():
+        print(f"Файл не найден: {args.events}", file=sys.stderr)
+        return 1
 
     logging_config = _resolve_logging_config(args.config, args.target)
     stats = import_legacy_bot(
         logging_config,
-        users_csv=args.users if args.users else None,
+        users_csv=args.users if args.users and not args.events_only else None,
         main_answers_csv=args.main_answers,
         reviews_csv=args.reviews,
         events_csv=args.events,
         dry_run=args.dry_run,
+        events_only=args.events_only,
     )
 
     mode = "DRY-RUN" if args.dry_run else "IMPORT"
     print(f"[{mode}] target={args.target} host={logging_config['host']}")
-    print(f"[{mode}] users created={stats.users_created} skipped={stats.users_skipped}")
-    print(f"[{mode}] main_answers={stats.main_answers} reviews={stats.reviews}")
+    if not args.events_only:
+        print(f"[{mode}] users created={stats.users_created} skipped={stats.users_skipped}")
+        print(f"[{mode}] main_answers={stats.main_answers} reviews={stats.reviews}")
     print(
-        f"[{mode}] events imported={stats.events_imported} skipped={stats.events_skipped}"
+        f"[{mode}] events imported={stats.events_imported} "
+        f"skipped={stats.events_skipped} "
+        f"(no_user={stats.events_skipped_no_user}, unmapped={stats.events_skipped_unmapped})"
     )
     return 0
 

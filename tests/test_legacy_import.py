@@ -39,6 +39,11 @@ def test_map_legacy_event_skips_finished() -> None:
     assert params is None
 
 
+def test_parse_event_parameters_python_literal() -> None:
+    params = _parse_event_parameters("[{'qv_number': 1}]")
+    assert params == {"qv_number": 1}
+
+
 def test_import_legacy_dry_run(tmp_path: Path) -> None:
     users_csv = tmp_path / "users.csv"
     main_csv = tmp_path / "main.csv"
