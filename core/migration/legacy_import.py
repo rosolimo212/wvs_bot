@@ -164,6 +164,54 @@ def _allocate_internal_user_id(conn: Any, schema: str) -> int:
     return int(row[0])
 
 
+def _collect_users_from_users_csv(
+    rows: list[dict[str, str]],
+) -> dict[str, LegacyUserRecord]:
+    users: dict[str, LegacyUserRecord] = {}
+    now = datetime.now()
+
+    for row in rows:
+        external_id = str(row.get("external_user_id", "")).strip()
+        if not external_id:
+            continue
+        user_name = str(row.get("user_name", "")).strip() or external_id
+        ts = (
+            _parse_timestamp(
+                row.get("registration_time")
+                or row.get("registration_date")
+                or row.get("insert_time")
+            )
+            or now
+        )
+        users[external_id] = LegacyUserRecord(
+            legacy_user_id=external_id,
+            external_user_id=external_id,
+            user_id=make_user_id(LEGACY_CHANNEL, external_id),
+            user_name=user_name,
+            registration_date=ts,
+            last_active_at=ts,
+        )
+    return users
+
+
+def _merge_user_records(
+    primary: dict[str, LegacyUserRecord],
+    supplemental: dict[str, LegacyUserRecord],
+) -> dict[str, LegacyUserRecord]:
+    for key, record in supplemental.items():
+        if key not in primary:
+            primary[key] = record
+            continue
+        existing = primary[key]
+        if len(record.user_name) > len(existing.user_name):
+            existing.user_name = record.user_name
+        if record.registration_date < existing.registration_date:
+            existing.registration_date = record.registration_date
+        if record.last_active_at > existing.last_active_at:
+            existing.last_active_at = record.last_active_at
+    return primary
+
+
 def _collect_users_from_rows(
     *row_groups: list[dict[str, str]],
 ) -> dict[str, LegacyUserRecord]:
@@ -209,16 +257,23 @@ def _collect_users_from_rows(
 def import_legacy_bot(
     logging_config: dict[str, Any],
     *,
+    users_csv: Path | None = None,
     main_answers_csv: Path,
     reviews_csv: Path,
     events_csv: Path,
     dry_run: bool = False,
 ) -> LegacyImportStats:
     schema = logging_config["schema"]
+    user_rows = _read_csv_rows(users_csv) if users_csv else []
     main_rows = _read_csv_rows(main_answers_csv)
     review_rows = _read_csv_rows(reviews_csv)
     event_rows = _read_csv_rows(events_csv)
-    users = _collect_users_from_rows(main_rows, review_rows, event_rows)
+
+    users = _collect_users_from_users_csv(user_rows)
+    users = _merge_user_records(
+        users,
+        _collect_users_from_rows(main_rows, review_rows, event_rows),
+    )
     stats = LegacyImportStats()
 
     if dry_run:

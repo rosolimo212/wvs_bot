@@ -40,9 +40,15 @@ def test_map_legacy_event_skips_finished() -> None:
 
 
 def test_import_legacy_dry_run(tmp_path: Path) -> None:
+    users_csv = tmp_path / "users.csv"
     main_csv = tmp_path / "main.csv"
     reviews_csv = tmp_path / "reviews.csv"
     events_csv = tmp_path / "events.csv"
+    users_csv.write_text(
+        "external_user_id,user_name,registration_time\n"
+        "111,alice,2024-01-01 09:00:00\n",
+        encoding="utf-8",
+    )
     main_csv.write_text(
         "user_id,user_name,qv_id,qv_number,qv_text,answer_text,insert_time\n"
         "111,alice,Q173,1,text,1. Да,2024-01-01 10:00:00\n",
@@ -61,6 +67,7 @@ def test_import_legacy_dry_run(tmp_path: Path) -> None:
     )
     stats = import_legacy_bot(
         {"schema": "wvs"},
+        users_csv=users_csv,
         main_answers_csv=main_csv,
         reviews_csv=reviews_csv,
         events_csv=events_csv,
