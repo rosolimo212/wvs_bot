@@ -234,6 +234,7 @@ def _mock_own_place() -> "OwnPlaceResult":
         ),
         age_pos=UserPosition(rv=10.0, sv=12.0, rv_rank=50, sv_rank=52),
         gender_age_pos=None,
+        gender_age_peers=None,
         bot=None,
     )
 

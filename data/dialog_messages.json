@@ -182,6 +182,42 @@
       "browser": ""
     },
     {
+      "id": 64,
+      "name": "find_own_place_sv_title",
+      "when": "Заголовок блока SV на экране «Понять своё место».",
+      "default": "**Ценности выживания / самовыражения**",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 65,
+      "name": "find_own_place_rv_title",
+      "when": "Заголовок блока RV на экране «Понять своё место».",
+      "default": "**Традиционные / секулярно-рациональные ценности**",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 66,
+      "name": "find_own_place_index_value",
+      "when": "Числовое значение одного индекса.",
+      "default": "Ваш индекс {index_name} составляет {value}",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 67,
+      "name": "find_own_place_peer_heading",
+      "when": "Подпись к сравнению со сверстниками того же пола.",
+      "default": "Среди {gender_label} вашего возраста (±{age_window} лет) из {country_name} ({sample_size} участников опроса WVS):",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
       "id": 58,
       "name": "find_own_place_wvs_heading",
       "when": "Заголовок сравнения с выборкой WVS по стране.",
@@ -492,6 +528,15 @@
       "name": "console_plot_skipped",
       "when": "График страны недоступен в консоли.",
       "default": "График положения стран недоступен в этом клиенте",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 68,
+      "name": "console_own_place_charts_skipped",
+      "when": "Гистограммы «Понять своё место» недоступны в консоли.",
+      "default": "Гистограммы распределения индексов доступны в веб-версии и Telegram.",
       "console": "",
       "telegram": "",
       "browser": ""

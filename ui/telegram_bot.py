@@ -122,6 +122,20 @@ async def _send_response(
             )
         return
 
+    from ui.own_place_delivery import deliver_own_place_telegram
+
+    own_place_delivery = deliver_own_place_telegram(data, channel)
+    await state.update_data(**data)
+
+    if own_place_delivery is not None:
+        await message.answer(own_place_delivery["text"], reply_markup=markup)
+        for png_bytes, filename in own_place_delivery.get("png_list", []):
+            await bot.send_photo(
+                message.chat.id,
+                BufferedInputFile(png_bytes, filename=filename),
+            )
+        return
+
     text = data.get("last_text", "")
     await message.answer(text, reply_markup=markup)
 

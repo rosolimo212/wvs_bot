@@ -309,11 +309,17 @@ def on_find_country(
     )
 
 
-def on_find_own_place(text: str, channel: str | None = None) -> AppResponse:
+def on_find_own_place(
+    text: str,
+    channel: str | None = None,
+    *,
+    meta: dict[str, Any] | None = None,
+) -> AppResponse:
     return AppResponse(
         text=text,
         buttons=[back_to_menu_button(channel)],
         screen=Screen.FIND_OWN_PLACE,
+        meta=meta or {},
     )
 
 

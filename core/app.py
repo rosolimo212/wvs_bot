@@ -14,11 +14,7 @@ from core.analytics.indices import (
     count_unknown_main_answers,
     should_warn_inaccurate_indices,
 )
-from core.analytics.index_interpretation import (
-    format_indices_summary,
-    format_rv_peer_comparison,
-    format_sv_peer_comparison,
-)
+from core.analytics.own_place_presentation import build_own_place_presentation
 from core.analytics.country import find_nearest_country
 from core.analytics.position import compute_own_place
 from core.analytics.secondary_profile import parse_secondary_profile
@@ -669,196 +665,17 @@ class AppService:
             self._log_find_own_place_start(identity, channel, answer=response.text)
             return response
 
-        ctx = own_place.context
-        parts: list[str] = []
-
-        if should_warn_inaccurate_indices(unknown_count):
-            parts.append(message("main_questionary_indices_inaccurate_warning", channel))
-
-        if ctx.user_country_missing_in_sample:
-            parts.append(
-                message(
-                    "find_own_place_country_missing",
-                    channel,
-                    country_text=profile.country_text or "",
-                )
-            )
-        elif ctx.used_default_country and not profile.country_text:
-            parts.append(message("find_own_place_country_default", channel))
-
-        parts.append(format_indices_summary(float(user_rv), float(user_sv)))
-        parts.append(
-            message("find_own_place_wvs_heading", channel, country_name=ctx.country_name)
+        result_text, own_place_meta = build_own_place_presentation(
+            user_rv=float(user_rv),
+            user_sv=float(user_sv),
+            own_place=own_place,
+            profile=profile,
+            channel=channel,
+            unknown_count=unknown_count,
+            warn_inaccurate=should_warn_inaccurate_indices(unknown_count),
         )
-        parts.append(
-            format_rv_peer_comparison(
-                float(user_rv),
-                own_place.global_pos.rv_rank,
-                ctx.country_name,
-            )
-        )
-        parts.append(
-            format_sv_peer_comparison(
-                float(user_sv),
-                own_place.global_pos.sv_rank,
-                ctx.country_name,
-            )
-        )
-
-        if own_place.age_pos and not ctx.age_sample_too_small:
-            parts.append(
-                message(
-                    "find_own_place_age_heading",
-                    channel,
-                    country_name=ctx.country_name,
-                    age_window=ctx.age_window or 0,
-                )
-            )
-            parts.append(
-                format_rv_peer_comparison(
-                    float(user_rv),
-                    own_place.age_pos.rv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников",
-                )
-            )
-            parts.append(
-                format_sv_peer_comparison(
-                    float(user_sv),
-                    own_place.age_pos.sv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников",
-                )
-            )
-        elif profile.age is not None and ctx.age_sample_too_small:
-            parts.append(
-                message(
-                    "find_own_place_age_sample_small",
-                    channel,
-                    country_name=ctx.country_name,
-                    age_window=ctx.age_window or 0,
-                    sample_size=ctx.age_sample_size or 0,
-                )
-            )
-
-        if own_place.gender_age_pos:
-            parts.append(
-                message(
-                    "find_own_place_gender_age_heading",
-                    channel,
-                    country_name=ctx.country_name,
-                    age_window=ctx.age_window or 0,
-                )
-            )
-            parts.append(
-                format_rv_peer_comparison(
-                    float(user_rv),
-                    own_place.gender_age_pos.rv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников",
-                )
-            )
-            parts.append(
-                format_sv_peer_comparison(
-                    float(user_sv),
-                    own_place.gender_age_pos.sv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников",
-                )
-            )
-        elif own_place.age_pos is None and profile.age is None:
-            parts.append(message("find_own_place_secondary_hint", channel))
-
-        if own_place.bot and own_place.bot.global_pos:
-            parts.append(message("find_own_place_bot_intro", channel))
-            parts.append(
-                message(
-                    "find_own_place_bot_heading",
-                    channel,
-                    country_name=ctx.country_name,
-                    other_users_count=own_place.bot.other_users_count,
-                )
-            )
-            parts.append(
-                format_rv_peer_comparison(
-                    float(user_rv),
-                    own_place.bot.global_pos.rv_rank,
-                    ctx.country_name,
-                    peers_label="других пользователей бота",
-                )
-            )
-            parts.append(
-                format_sv_peer_comparison(
-                    float(user_sv),
-                    own_place.bot.global_pos.sv_rank,
-                    ctx.country_name,
-                    peers_label="других пользователей бота",
-                )
-            )
-            if own_place.bot.age_pos and not own_place.bot.age_sample_too_small:
-                parts.append(
-                    message(
-                        "find_own_place_bot_age_heading",
-                        channel,
-                        country_name=ctx.country_name,
-                        age_window=own_place.bot.age_window or 0,
-                    )
-                )
-                parts.append(
-                    format_rv_peer_comparison(
-                        float(user_rv),
-                        own_place.bot.age_pos.rv_rank,
-                        ctx.country_name,
-                        peers_label="сверстников среди пользователей бота",
-                    )
-                )
-                parts.append(
-                    format_sv_peer_comparison(
-                        float(user_sv),
-                        own_place.bot.age_pos.sv_rank,
-                        ctx.country_name,
-                        peers_label="сверстников среди пользователей бота",
-                    )
-                )
-            elif profile.age is not None and own_place.bot.age_sample_too_small:
-                parts.append(
-                    message(
-                        "find_own_place_bot_age_sample_small",
-                        channel,
-                        country_name=ctx.country_name,
-                        age_window=own_place.bot.age_window or 0,
-                        sample_size=own_place.bot.age_sample_size or 0,
-                    )
-                )
-            if own_place.bot.gender_age_pos:
-                parts.append(
-                    message(
-                        "find_own_place_bot_gender_age_heading",
-                        channel,
-                        country_name=ctx.country_name,
-                        age_window=own_place.bot.age_window or 0,
-                    )
-                )
-                parts.append(
-                    format_rv_peer_comparison(
-                        float(user_rv),
-                        own_place.bot.gender_age_pos.rv_rank,
-                        ctx.country_name,
-                        peers_label="сверстников вашего пола среди пользователей бота",
-                    )
-                )
-                parts.append(
-                    format_sv_peer_comparison(
-                        float(user_sv),
-                        own_place.bot.gender_age_pos.sv_rank,
-                        ctx.country_name,
-                        peers_label="сверстников вашего пола среди пользователей бота",
-                    )
-                )
-
-        result_text = "\n\n".join(parts)
         self._log_find_own_place_start(identity, channel, answer=result_text)
-        return on_find_own_place(result_text, channel)
+        return on_find_own_place(result_text, channel, meta=own_place_meta)
 
     def _show_main_question(
         self,

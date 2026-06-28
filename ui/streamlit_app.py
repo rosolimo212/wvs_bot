@@ -286,6 +286,28 @@ def run_streamlit(config: dict[str, Any]) -> None:
                 )
                 state["country_plot_logged"] = True
 
+    if screen != Screen.FIND_OWN_PLACE.value:
+        state.pop("own_place_charts_logged", None)
+
+    own_place_meta = state.get("meta", {})
+    if (
+        screen == Screen.FIND_OWN_PLACE.value
+        and own_place_meta.get("show_own_place_charts")
+        and not state.get("own_place_charts_logged")
+    ):
+        from ui.own_place_plot import build_index_histogram_plotly
+
+        for chart in own_place_meta.get("own_place_charts", []):
+            fig = build_index_histogram_plotly(
+                list(chart["peer_values"]),
+                float(chart["user_value"]),
+                title=str(chart["title"]),
+                x_label=str(chart["x_label"]),
+            )
+            if fig is not None:
+                st.plotly_chart(fig, use_container_width=True)
+        state["own_place_charts_logged"] = True
+
     if screen == Screen.START.value:
         name = st.text_input(message("browser_name_label", "streamlit"), key="name_input")
         if st.button(message("browser_btn_continue", "streamlit"), key="btn_start"):

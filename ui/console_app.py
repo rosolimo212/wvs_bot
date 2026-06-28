@@ -47,6 +47,9 @@ def _print_response(state: dict[str, Any], channel: str = "console") -> None:
     if screen == Screen.FIND_COUNTRY.value and state.get("meta", {}).get("show_country_plot"):
         print()
         print(console_plot_note(channel))
+    if screen == Screen.FIND_OWN_PLACE.value and state.get("meta", {}).get("show_own_place_charts"):
+        print()
+        print(message("console_own_place_charts_skipped", channel))
     print()
 
 

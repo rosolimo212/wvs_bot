@@ -74,11 +74,23 @@ class BotComparisonResult:
 
 
 @dataclass(frozen=True)
+class GenderAgePeerSample:
+    sv_values: tuple[float, ...]
+    rv_values: tuple[float, ...]
+    sv_rank: int
+    rv_rank: int
+    age_window: int
+    sample_size: int
+    gender_label: str
+
+
+@dataclass(frozen=True)
 class OwnPlaceResult:
     global_pos: UserPosition
     context: OwnPlaceContext
     age_pos: UserPosition | None
     gender_age_pos: UserPosition | None
+    gender_age_peers: GenderAgePeerSample | None
     bot: BotComparisonResult | None
 
 
@@ -321,7 +333,33 @@ def _compute_bot_comparison(
     )
 
 
-def _country_display_name(country_code: str) -> str:
+def _gender_label(gender: str | None) -> str:
+    if not gender:
+        return "участников"
+    normalized = gender.casefold()
+    if normalized == "мужчина":
+        return "мужчин"
+    if normalized == "женщина":
+        return "женщин"
+    return "участников"
+
+
+def _build_gender_age_peer_sample(
+    *,
+    gender_age_rows: list[GenSampleRow],
+    gender_age_pos: UserPosition,
+    age_window: int,
+    profile: SecondaryProfile,
+) -> GenderAgePeerSample:
+    return GenderAgePeerSample(
+        sv_values=tuple(row.sv for row in gender_age_rows),
+        rv_values=tuple(row.rv for row in gender_age_rows),
+        sv_rank=gender_age_pos.sv_rank,
+        rv_rank=gender_age_pos.rv_rank,
+        age_window=age_window,
+        sample_size=len(gender_age_rows),
+        gender_label=_gender_label(profile.gender),
+    )
     profiles = load_country_profiles()
     profile = profiles.get(country_code.upper())
     if profile and profile.get("full_name"):
@@ -366,6 +404,7 @@ def compute_own_place(
 
     age_pos = None
     gender_age_pos = None
+    gender_age_peers = None
     age_window = None
     age_sample_size = None
     age_sample_too_small = False
@@ -382,6 +421,13 @@ def compute_own_place(
             ]
             if len(gender_age_rows) >= MIN_STRAT_SAMPLE:
                 gender_age_pos = _position_from_sample(user_rv, user_sv, gender_age_rows)
+                if gender_age_pos is not None and age_window is not None:
+                    gender_age_peers = _build_gender_age_peer_sample(
+                        gender_age_rows=gender_age_rows,
+                        gender_age_pos=gender_age_pos,
+                        age_window=age_window,
+                        profile=profile,
+                    )
 
     context = OwnPlaceContext(
         country_code=country_code,
@@ -411,5 +457,6 @@ def compute_own_place(
         context=context,
         age_pos=age_pos,
         gender_age_pos=gender_age_pos,
+        gender_age_peers=gender_age_peers,
         bot=bot,
     )
