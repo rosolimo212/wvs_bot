@@ -248,7 +248,7 @@
       "id": 61,
       "name": "find_own_place_bot_heading",
       "when": "Заголовок сравнения с другими пользователями бота.",
-      "default": "**Среди {other_users_count} других пользователей бота из {country_name}:**",
+      "default": "**Среди других пользователей бота из {country_name}:**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -383,7 +383,7 @@
       "id": 57,
       "name": "find_own_place_bot_age_sample_small",
       "when": "Мало пользователей бота в возрастной группе.",
-      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) из {country_name} пока слишком мало людей ({sample_size}), чтобы сравнить вас с ровесниками.",
+      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) из {country_name} пока слишком мало людей, чтобы сравнить вас с ровесниками.",
       "console": "",
       "telegram": "",
       "browser": ""

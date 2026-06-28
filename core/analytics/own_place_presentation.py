@@ -11,7 +11,12 @@ from core.analytics.index_interpretation import (
     format_rv_peer_comparison,
     format_sv_peer_comparison,
 )
-from core.analytics.position import GenderAgePeerSample, OwnPlaceContext, OwnPlaceResult
+from core.analytics.position import (
+    BotComparisonResult,
+    GenderAgePeerSample,
+    OwnPlaceContext,
+    OwnPlaceResult,
+)
 from core.analytics.secondary_profile import SecondaryProfile
 from core.messages import message
 
@@ -134,6 +139,98 @@ def _rv_section(
     return parts, chart
 
 
+def _bot_section(
+    user_rv: float,
+    user_sv: float,
+    bot: BotComparisonResult,
+    ctx: OwnPlaceContext,
+    profile: SecondaryProfile,
+    channel: str | None,
+) -> list[str]:
+    if bot.global_pos is None:
+        return []
+
+    parts = [
+        message("find_own_place_bot_intro", channel),
+        message(
+            "find_own_place_bot_heading",
+            channel,
+            country_name=ctx.country_name,
+        ),
+        format_rv_peer_comparison(
+            user_rv,
+            bot.global_pos.rv_rank,
+            ctx.country_name,
+            peers_label="других пользователей бота",
+        ),
+        format_sv_peer_comparison(
+            user_sv,
+            bot.global_pos.sv_rank,
+            ctx.country_name,
+            peers_label="других пользователей бота",
+        ),
+    ]
+
+    if bot.age_pos and not bot.age_sample_too_small:
+        parts.extend(
+            [
+                message(
+                    "find_own_place_bot_age_heading",
+                    channel,
+                    country_name=ctx.country_name,
+                    age_window=bot.age_window or 0,
+                ),
+                format_rv_peer_comparison(
+                    user_rv,
+                    bot.age_pos.rv_rank,
+                    ctx.country_name,
+                    peers_label="сверстников среди пользователей бота",
+                ),
+                format_sv_peer_comparison(
+                    user_sv,
+                    bot.age_pos.sv_rank,
+                    ctx.country_name,
+                    peers_label="сверстников среди пользователей бота",
+                ),
+            ]
+        )
+    elif profile.age is not None and bot.age_sample_too_small:
+        parts.append(
+            message(
+                "find_own_place_bot_age_sample_small",
+                channel,
+                country_name=ctx.country_name,
+                age_window=bot.age_window or 0,
+            )
+        )
+
+    if bot.gender_age_pos:
+        parts.extend(
+            [
+                message(
+                    "find_own_place_bot_gender_age_heading",
+                    channel,
+                    country_name=ctx.country_name,
+                    age_window=bot.age_window or 0,
+                ),
+                format_rv_peer_comparison(
+                    user_rv,
+                    bot.gender_age_pos.rv_rank,
+                    ctx.country_name,
+                    peers_label="сверстников вашего пола среди пользователей бота",
+                ),
+                format_sv_peer_comparison(
+                    user_sv,
+                    bot.gender_age_pos.sv_rank,
+                    ctx.country_name,
+                    peers_label="сверстников вашего пола среди пользователей бота",
+                ),
+            ]
+        )
+
+    return parts
+
+
 def build_own_place_presentation(
     *,
     user_rv: float,
@@ -186,6 +283,18 @@ def build_own_place_presentation(
         )
     else:
         parts.append(message("find_own_place_secondary_hint", channel))
+
+    if own_place.bot is not None:
+        parts.extend(
+            _bot_section(
+                float(user_rv),
+                float(user_sv),
+                own_place.bot,
+                ctx,
+                profile,
+                channel,
+            )
+        )
 
     meta: dict[str, Any] = {}
     if charts:
