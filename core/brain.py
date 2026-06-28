@@ -344,6 +344,29 @@ def on_analytics_no_data(channel: str | None = None, *, screen: Screen) -> AppRe
     )
 
 
+def on_analytics_error(
+    channel: str | None = None,
+    *,
+    screen: Screen,
+    feature: str,
+    module: str,
+    error_name: str,
+    error_message: str,
+) -> AppResponse:
+    return AppResponse(
+        text=message(
+            "analytics_error",
+            channel,
+            feature=feature,
+            module=module,
+            error_name=error_name,
+            error_message=error_message,
+        ),
+        buttons=[back_to_menu_button(channel)],
+        screen=screen,
+    )
+
+
 def on_main_answer_empty(channel: str | None = None) -> AppResponse:
     return AppResponse(
         text=message("main_answer_empty", channel),
@@ -407,6 +430,7 @@ __all__ = [
     "on_find_own_place",
     "on_find_own_place_need_secondary",
     "on_analytics_no_data",
+    "on_analytics_error",
     "on_main_answer_empty",
     "on_main_answer_invalid",
     "on_main_menu_reminder",

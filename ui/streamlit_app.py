@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 
 from core.messages import back_to_learn_more_button, back_to_menu_button, button, message
 from core.country_profiles import format_country_profile
+from core.error_reporting import analytics_feature_label, describe_exception
 from core.learn_more import match_learn_more_question
 from core.models import (
     ACTION_BACK_TO_MENU,
@@ -256,35 +257,56 @@ def run_streamlit(config: dict[str, Any]) -> None:
                 or config.get("logging", {}).get("schema", "wvs")
             )
             total_started = time.perf_counter()
-            fig, build_timings = build_country_plot_plotly(
-                float(meta["user_sv"]),
-                float(meta["user_rv"]),
-                logging_config,
-                reference_schema=reference_schema,
-            )
-            if fig is not None:
-                render_started = time.perf_counter()
-                st.plotly_chart(fig, use_container_width=True)
-                render_ms = int((time.perf_counter() - render_started) * 1000)
-
-                profile_started = time.perf_counter()
-                country_code = str(meta.get("country_code", ""))
-                profile_text = format_country_profile(country_code, "streamlit")
-                if profile_text.strip():
-                    st.markdown(profile_text)
-                country_plot_loaded_ms = int((time.perf_counter() - profile_started) * 1000)
-
-                total_ms = int((time.perf_counter() - total_started) * 1000)
-                service.log_country_plot_loaded(
+            try:
+                fig, build_timings = build_country_plot_plotly(
+                    float(meta["user_sv"]),
+                    float(meta["user_rv"]),
+                    logging_config,
+                    reference_schema=reference_schema,
+                )
+            except Exception as exc:
+                service.log_analytics_error(
                     identity,
                     "streamlit",
-                    sql_ms=build_timings.sql_ms,
-                    processing_ms=build_timings.processing_ms,
-                    render_ms=render_ms,
-                    country_plot_loaded_ms=country_plot_loaded_ms,
-                    total_ms=total_ms,
+                    feature="country_plot",
+                    exc=exc,
+                )
+                details = describe_exception(exc)
+                st.error(
+                    message(
+                        "analytics_error",
+                        "streamlit",
+                        feature=analytics_feature_label("country_plot"),
+                        module=details["module"],
+                        error_name=details["error_name"],
+                        error_message=details["error_message"],
+                    )
                 )
                 state["country_plot_logged"] = True
+            else:
+                if fig is not None:
+                    render_started = time.perf_counter()
+                    st.plotly_chart(fig, use_container_width=True)
+                    render_ms = int((time.perf_counter() - render_started) * 1000)
+
+                    profile_started = time.perf_counter()
+                    country_code = str(meta.get("country_code", ""))
+                    profile_text = format_country_profile(country_code, "streamlit")
+                    if profile_text.strip():
+                        st.markdown(profile_text)
+                    country_plot_loaded_ms = int((time.perf_counter() - profile_started) * 1000)
+
+                    total_ms = int((time.perf_counter() - total_started) * 1000)
+                    service.log_country_plot_loaded(
+                        identity,
+                        "streamlit",
+                        sql_ms=build_timings.sql_ms,
+                        processing_ms=build_timings.processing_ms,
+                        render_ms=render_ms,
+                        country_plot_loaded_ms=country_plot_loaded_ms,
+                        total_ms=total_ms,
+                    )
+                    state["country_plot_logged"] = True
 
     if screen != Screen.FIND_OWN_PLACE.value:
         state.pop("own_place_charts_logged", None)

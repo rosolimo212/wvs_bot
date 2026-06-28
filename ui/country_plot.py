@@ -83,8 +83,10 @@ def load_country_data(
     """
     try:
         rows = fetch_all_rows(query, logging_config)
-    except Exception:
-        return None
+    except Exception as exc:
+        raise RuntimeError(
+            f"ui.country_plot.load_country_data: {type(exc).__module__}.{type(exc).__qualname__}: {exc}"
+        ) from exc
     if not rows:
         return None
     return pd.DataFrame(rows, columns=["country_code", "country_rv", "country_sv", "cluster"])

@@ -6,8 +6,8 @@ from unittest.mock import patch
 from core.analytics.country import NearestCountry
 from core.app import AppService
 from core.logging.noop import NoopLogger
-from core.messages import back_to_menu_button, button
-from core.models import ACTION_MAIN_ANSWER, ACTION_OPTION_2, ACTION_OPTION_3, Screen
+from core.messages import back_to_menu_button, button, message
+from core.models import ACTION_MAIN_ANSWER, ACTION_OPTION_2, ACTION_OPTION_3, ACTION_OPTION_4, Screen
 from core.questionnaire.memory import MemoryMainAnswerStore, MemorySecondaryAnswerStore
 
 
@@ -185,6 +185,87 @@ def test_find_country_start_logs_answer_text() -> None:
     idx = len(logger.events) - 1 - logger.events[::-1].index("find_counry_start")
     assert logger.event_parameters[idx]["answer"] == response.text
     assert "RUS" in logger.event_parameters[idx]["answer"]
+
+
+def test_find_country_exception_logs_analytics_error() -> None:
+    logger = RecordingLogger()
+    service = AppService(
+        logger,
+        {
+            "app": {"interface": "streamlit", "logging_enabled": True},
+            "logging": {"schema": "wvs"},
+            "telegram": {"token": ""},
+            "paths": {"questions_file": "questions.json"},
+            "analytics": {"reference_schema": "wvs"},
+        },
+        answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
+    )
+    identity = logger.ensure_user("streamlit", "ext-find-country-error")
+    payload = {"user_name": "Роман"}
+
+    service.handle_action(identity, "streamlit", "name_entered", {"text": "Роман"})
+    for question in service._main_questions:
+        variant = question["variants"][0]
+        service.handle_action(
+            identity,
+            "streamlit",
+            ACTION_MAIN_ANSWER,
+            {**payload, "selected": variant, "answer": variant},
+        )
+
+    with patch("core.app.find_nearest_country", side_effect=RuntimeError("db timeout")):
+        response = service.handle_action(identity, "streamlit", ACTION_OPTION_3, payload)
+
+    assert "analytics_error" in logger.events
+    error_idx = logger.events.index("analytics_error")
+    assert logger.event_parameters[error_idx]["feature"] == "find_country"
+    assert logger.event_parameters[error_idx]["error_name"] == "RuntimeError"
+    assert "db timeout" in logger.event_parameters[error_idx]["error_message"]
+    assert "RuntimeError: db timeout" in logger.event_parameters[error_idx]["traceback"]
+    assert message("analytics_error", "streamlit", feature="Найти страну", module="builtins", error_name="RuntimeError", error_message="db timeout") in response.text
+    assert message("analytics_no_data", "streamlit") not in response.text
+
+
+def test_find_own_place_exception_logs_analytics_error() -> None:
+    logger = RecordingLogger()
+    service = AppService(
+        logger,
+        {
+            "app": {"interface": "streamlit", "logging_enabled": True},
+            "logging": {"schema": "wvs"},
+            "telegram": {"token": ""},
+            "paths": {"questions_file": "questions.json"},
+            "analytics": {"reference_schema": "wvs"},
+        },
+        answer_store=MemoryMainAnswerStore(),
+        secondary_answer_store=MemorySecondaryAnswerStore(),
+    )
+    identity = logger.ensure_user("streamlit", "ext-own-place-error")
+    payload = {"user_name": "Роман"}
+
+    service.handle_action(identity, "streamlit", "name_entered", {"text": "Роман"})
+    for question in service._main_questions:
+        variant = question["variants"][0]
+        service.handle_action(
+            identity,
+            "streamlit",
+            ACTION_MAIN_ANSWER,
+            {**payload, "selected": variant, "answer": variant},
+        )
+
+    with (
+        patch.object(service, "is_secondary_questionary_complete", return_value=True),
+        patch("core.app.compute_own_place", side_effect=NameError("_country_display_name")),
+    ):
+        response = service.handle_action(identity, "streamlit", ACTION_OPTION_4, payload)
+
+    assert "analytics_error" in logger.events
+    error_idx = logger.events.index("analytics_error")
+    assert logger.event_parameters[error_idx]["feature"] == "find_own_place"
+    assert logger.event_parameters[error_idx]["error_name"] == "NameError"
+    assert "_country_display_name" in response.text
+    assert message("analytics_no_data", "streamlit") not in response.text
 
 
 def test_faq_menu_and_page_visit_logged() -> None:

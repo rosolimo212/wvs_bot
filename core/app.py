@@ -18,6 +18,11 @@ from core.analytics.own_place_presentation import build_own_place_presentation
 from core.analytics.country import find_nearest_country
 from core.analytics.position import compute_own_place
 from core.analytics.secondary_profile import parse_secondary_profile
+from core.error_reporting import (
+    analytics_error_event_parameters,
+    analytics_feature_label,
+    describe_exception,
+)
 from core.learn_more import LEARN_MORE_COUNT, learn_more_item_slug, learn_more_question_title
 from core.brain import (
     is_back_to_learn_more,
@@ -32,6 +37,7 @@ from core.brain import (
     on_find_own_place,
     on_find_own_place_need_secondary,
     on_analytics_no_data,
+    on_analytics_error,
     on_learn_more_answer_reminder,
     on_learn_more_hub,
     on_learn_more_reminder,
@@ -208,6 +214,45 @@ class AppService:
             event_name="find_own_place_start",
             channel=channel,
             event_parameters={"answer": answer},
+        )
+
+    def log_analytics_error(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        feature: str,
+        exc: BaseException,
+    ) -> dict[str, str]:
+        params = analytics_error_event_parameters(feature, exc)
+        self.logger.log_event(
+            identity=identity,
+            event_name="analytics_error",
+            channel=channel,
+            event_parameters=params,
+        )
+        return {
+            "module": str(params["module"]),
+            "error_name": str(params["error_name"]),
+            "error_message": str(params["error_message"]),
+        }
+
+    def _analytics_error_response(
+        self,
+        channel: str,
+        *,
+        screen: Screen,
+        feature: str,
+        exc: BaseException,
+    ) -> AppResponse:
+        details = describe_exception(exc)
+        return on_analytics_error(
+            channel,
+            screen=screen,
+            feature=analytics_feature_label(feature),
+            module=details["module"],
+            error_name=details["error_name"],
+            error_message=details["error_message"],
         )
 
     def log_country_plot_loaded(
@@ -595,8 +640,21 @@ class AppService:
                 logging_config,
                 reference_schema=self._reference_schema(),
             )
-        except Exception:
-            result = None
+        except Exception as exc:
+            self.log_analytics_error(
+                identity,
+                channel,
+                feature="find_country",
+                exc=exc,
+            )
+            response = self._analytics_error_response(
+                channel,
+                screen=Screen.FIND_COUNTRY,
+                feature="find_country",
+                exc=exc,
+            )
+            self._log_find_country_start(identity, channel, answer=response.text)
+            return response
         if result is None:
             response = on_analytics_no_data(channel, screen=Screen.FIND_COUNTRY)
             self._log_find_country_start(identity, channel, answer=response.text)
@@ -657,8 +715,21 @@ class AppService:
                 reference_schema=self._reference_schema(),
                 exclude_user_id=identity.user_id,
             )
-        except Exception:
-            own_place = None
+        except Exception as exc:
+            self.log_analytics_error(
+                identity,
+                channel,
+                feature="find_own_place",
+                exc=exc,
+            )
+            response = self._analytics_error_response(
+                channel,
+                screen=Screen.FIND_OWN_PLACE,
+                feature="find_own_place",
+                exc=exc,
+            )
+            self._log_find_own_place_start(identity, channel, answer=response.text)
+            return response
 
         if own_place is None:
             response = on_analytics_no_data(channel, screen=Screen.FIND_OWN_PLACE)

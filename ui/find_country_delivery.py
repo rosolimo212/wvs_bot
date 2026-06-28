@@ -9,6 +9,8 @@ import time
 from typing import Any
 
 from core.country_profiles import format_country_profile
+from core.error_reporting import analytics_feature_label, describe_exception
+from core.messages import message
 from core.models import Screen, UserIdentity
 from ui.country_plot import export_country_plot_png
 
@@ -59,12 +61,31 @@ def deliver_find_country_telegram(
     _ = format_country_profile(str(meta.get("country_code", "")), channel)
     country_plot_loaded_ms = int((time.perf_counter() - profile_started) * 1000)
 
-    png_bytes, timings = export_country_plot_png(
-        float(meta["user_sv"]),
-        float(meta["user_rv"]),
-        logging_config,
-        reference_schema=reference_schema,
-    )
+    try:
+        png_bytes, timings = export_country_plot_png(
+            float(meta["user_sv"]),
+            float(meta["user_rv"]),
+            logging_config,
+            reference_schema=reference_schema,
+        )
+    except Exception as exc:
+        service.log_analytics_error(
+            identity,
+            channel,
+            feature="country_plot",
+            exc=exc,
+        )
+        details = describe_exception(exc)
+        plot_error = message(
+            "analytics_error",
+            channel,
+            feature=analytics_feature_label("country_plot"),
+            module=details["module"],
+            error_name=details["error_name"],
+            error_message=details["error_message"],
+        )
+        text = f"{text}\n\n{plot_error}"
+        return {"text": text, "png_bytes": None, "timings": None}
     total_ms = int((time.perf_counter() - total_started) * 1000)
 
     if timings is not None and png_bytes is not None:
