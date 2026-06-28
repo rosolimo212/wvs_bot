@@ -360,6 +360,9 @@ def _build_gender_age_peer_sample(
         sample_size=len(gender_age_rows),
         gender_label=_gender_label(profile.gender),
     )
+
+
+def _country_display_name(country_code: str) -> str:
     profiles = load_country_profiles()
     profile = profiles.get(country_code.upper())
     if profile and profile.get("full_name"):

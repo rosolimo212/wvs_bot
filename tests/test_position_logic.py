@@ -6,6 +6,7 @@ from core.analytics.position import (
     BotUserRow,
     GenSampleRow,
     _choose_age_rows,
+    _country_display_name,
     _choose_bot_age_rows,
     _compute_bot_comparison,
     rank_percent,
@@ -58,6 +59,10 @@ def test_resolve_country_missing_in_sample_falls_back() -> None:
 def test_rank_percent() -> None:
     assert rank_percent(5, [1, 2, 3, 4, 5]) == 80
     assert rank_percent(1, [1, 2, 3]) == 0
+
+
+def test_country_display_name_rus() -> None:
+    assert _country_display_name("RUS") == "Россия"
 
 
 def test_choose_age_window_expands_until_enough() -> None:
