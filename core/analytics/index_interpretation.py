@@ -49,6 +49,18 @@ def _comparison_percent(rank: int, *, high_pole: bool) -> int:
     return rank if high_pole else 100 - rank
 
 
+def sv_comparison_percent(sv: float, rank: int) -> int:
+    if sv < 10:
+        return _comparison_percent(rank, high_pole=False)
+    return _comparison_percent(rank, high_pole=True)
+
+
+def rv_comparison_percent(rv: float, rank: int) -> int:
+    if rv < 13:
+        return _comparison_percent(rank, high_pole=False)
+    return _comparison_percent(rank, high_pole=True)
+
+
 def format_rv_peer_comparison(
     rv: float,
     rank: int,

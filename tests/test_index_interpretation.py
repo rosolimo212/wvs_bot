@@ -43,6 +43,15 @@ def test_format_sv_peer_comparison_self_expression() -> None:
     assert "сверстников" in text
 
 
+def test_sv_comparison_percent_branches() -> None:
+    from core.analytics.index_interpretation import rv_comparison_percent, sv_comparison_percent
+
+    assert sv_comparison_percent(8, 20) == 80
+    assert sv_comparison_percent(15, 60) == 60
+    assert rv_comparison_percent(11, 20) == 80
+    assert rv_comparison_percent(18, 55) == 55
+
+
 def test_format_rv_peer_comparison_traditional() -> None:
     text = format_rv_peer_comparison(11, 20, "Россия")
     assert "традиционные" in text

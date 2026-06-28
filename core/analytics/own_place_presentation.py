@@ -8,14 +8,15 @@ from typing import Any
 from core.analytics.index_interpretation import (
     describe_rv_score,
     describe_sv_score,
-    format_rv_peer_comparison,
-    format_sv_peer_comparison,
+    rv_comparison_percent,
+    sv_comparison_percent,
 )
 from core.analytics.position import (
     BotComparisonResult,
     GenderAgePeerSample,
     OwnPlaceContext,
     OwnPlaceResult,
+    UserPosition,
 )
 from core.analytics.secondary_profile import SecondaryProfile
 from core.messages import message
@@ -24,24 +25,6 @@ SV_INDEX_TITLE = "Ценности выживания / самовыражени
 RV_INDEX_TITLE = "Традиционные / секулярно-рациональные ценности"
 SV_AXIS_LABEL = "Индекс выживания / самовыражения"
 RV_AXIS_LABEL = "Индекс традиционных / секулярно-рациональных ценностей"
-
-
-def _peer_heading(
-    channel: str | None,
-    *,
-    country_name: str,
-    gender_label: str,
-    age_window: int,
-    sample_size: int,
-) -> str:
-    return message(
-        "find_own_place_peer_heading",
-        channel,
-        country_name=country_name,
-        gender_label=gender_label,
-        age_window=age_window,
-        sample_size=sample_size,
-    )
 
 
 def _chart_meta(
@@ -61,174 +44,151 @@ def _chart_meta(
     }
 
 
-def _sv_section(
-    user_sv: float,
-    peers: GenderAgePeerSample,
-    ctx: OwnPlaceContext,
+def _sv_lead_in(sv: float, channel: str | None) -> str:
+    if sv < 10:
+        return message("find_own_place_sv_lead_survival", channel)
+    if sv < 14:
+        return message("find_own_place_sv_lead_balance", channel)
+    return message("find_own_place_sv_lead_self_expression", channel)
+
+
+def _rv_lead_in(rv: float, channel: str | None) -> str:
+    if rv < 13:
+        return message("find_own_place_rv_lead_traditional", channel)
+    if rv < 16:
+        return message("find_own_place_rv_lead_balance", channel)
+    return message("find_own_place_rv_lead_secular", channel)
+
+
+def _comparison_bullets(
+    *,
     channel: str | None,
-) -> tuple[list[str], dict[str, Any] | None]:
-    parts = [
-        message("find_own_place_sv_title", channel),
-        message(
-            "find_own_place_index_value",
-            channel,
-            index_name=SV_INDEX_TITLE,
-            value=user_sv,
-        ),
-        describe_sv_score(user_sv),
-        _peer_heading(
-            channel,
-            country_name=ctx.country_name,
-            gender_label=peers.gender_label,
-            age_window=peers.age_window,
-            sample_size=peers.sample_size,
-        ),
-        format_sv_peer_comparison(
-            user_sv,
-            peers.sv_rank,
-            ctx.country_name,
-            peers_label=f"{peers.gender_label} вашего возраста",
-        ),
-    ]
-    chart = _chart_meta(
-        kind="sv",
-        user_value=float(user_sv),
-        peer_values=list(peers.sv_values),
-        title=SV_INDEX_TITLE,
-        x_label=SV_AXIS_LABEL,
-    )
-    return parts, chart
-
-
-def _rv_section(
-    user_rv: float,
-    peers: GenderAgePeerSample,
-    ctx: OwnPlaceContext,
-    channel: str | None,
-) -> tuple[list[str], dict[str, Any] | None]:
-    parts = [
-        message("find_own_place_rv_title", channel),
-        message(
-            "find_own_place_index_value",
-            channel,
-            index_name=RV_INDEX_TITLE,
-            value=user_rv,
-        ),
-        describe_rv_score(user_rv),
-        _peer_heading(
-            channel,
-            country_name=ctx.country_name,
-            gender_label=peers.gender_label,
-            age_window=peers.age_window,
-            sample_size=peers.sample_size,
-        ),
-        format_rv_peer_comparison(
-            user_rv,
-            peers.rv_rank,
-            ctx.country_name,
-            peers_label=f"{peers.gender_label} вашего возраста",
-        ),
-    ]
-    chart = _chart_meta(
-        kind="rv",
-        user_value=float(user_rv),
-        peer_values=list(peers.rv_values),
-        title=RV_INDEX_TITLE,
-        x_label=RV_AXIS_LABEL,
-    )
-    return parts, chart
-
-
-def _bot_section(
-    user_rv: float,
-    user_sv: float,
-    bot: BotComparisonResult,
-    ctx: OwnPlaceContext,
-    profile: SecondaryProfile,
-    channel: str | None,
+    country_name: str,
+    global_pos: UserPosition,
+    gender_age_pos: UserPosition | None,
+    bot: BotComparisonResult | None,
+    index_kind: str,
+    user_value: float,
 ) -> list[str]:
-    if bot.global_pos is None:
-        return []
+    bullets: list[str] = []
 
-    parts = [
-        message("find_own_place_bot_intro", channel),
-        message(
-            "find_own_place_bot_heading",
-            channel,
-            country_name=ctx.country_name,
-        ),
-        format_rv_peer_comparison(
-            user_rv,
-            bot.global_pos.rv_rank,
-            ctx.country_name,
-            peers_label="других пользователей бота",
-        ),
-        format_sv_peer_comparison(
-            user_sv,
-            bot.global_pos.sv_rank,
-            ctx.country_name,
-            peers_label="других пользователей бота",
-        ),
-    ]
-
-    if bot.age_pos and not bot.age_sample_too_small:
-        parts.extend(
-            [
-                message(
-                    "find_own_place_bot_age_heading",
-                    channel,
-                    country_name=ctx.country_name,
-                    age_window=bot.age_window or 0,
-                ),
-                format_rv_peer_comparison(
-                    user_rv,
-                    bot.age_pos.rv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников среди пользователей бота",
-                ),
-                format_sv_peer_comparison(
-                    user_sv,
-                    bot.age_pos.sv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников среди пользователей бота",
-                ),
-            ]
-        )
-    elif profile.age is not None and bot.age_sample_too_small:
-        parts.append(
+    if index_kind == "sv":
+        percent = sv_comparison_percent(user_value, global_pos.sv_rank)
+        bullets.append(
             message(
-                "find_own_place_bot_age_sample_small",
+                "find_own_place_compare_wvs_country",
                 channel,
-                country_name=ctx.country_name,
-                age_window=bot.age_window or 0,
+                percent=percent,
+                country_name=country_name,
             )
         )
-
-    if bot.gender_age_pos:
-        parts.extend(
-            [
+        if gender_age_pos is not None:
+            peer_percent = sv_comparison_percent(user_value, gender_age_pos.sv_rank)
+            bullets.append(
                 message(
-                    "find_own_place_bot_gender_age_heading",
+                    "find_own_place_compare_wvs_peers",
                     channel,
-                    country_name=ctx.country_name,
-                    age_window=bot.age_window or 0,
-                ),
-                format_rv_peer_comparison(
-                    user_rv,
-                    bot.gender_age_pos.rv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников вашего пола среди пользователей бота",
-                ),
-                format_sv_peer_comparison(
-                    user_sv,
-                    bot.gender_age_pos.sv_rank,
-                    ctx.country_name,
-                    peers_label="сверстников вашего пола среди пользователей бота",
-                ),
-            ]
-        )
+                    percent=peer_percent,
+                    country_name=country_name,
+                )
+            )
+        if bot is not None and bot.gender_age_pos is not None:
+            bot_percent = sv_comparison_percent(user_value, bot.gender_age_pos.sv_rank)
+            bullets.append(
+                message(
+                    "find_own_place_compare_bot_peers",
+                    channel,
+                    percent=bot_percent,
+                    country_name=country_name,
+                )
+            )
+        return bullets
 
-    return parts
+    percent = rv_comparison_percent(user_value, global_pos.rv_rank)
+    bullets.append(
+        message(
+            "find_own_place_compare_wvs_country",
+            channel,
+            percent=percent,
+            country_name=country_name,
+        )
+    )
+    if gender_age_pos is not None:
+        peer_percent = rv_comparison_percent(user_value, gender_age_pos.rv_rank)
+        bullets.append(
+            message(
+                "find_own_place_compare_wvs_peers",
+                channel,
+                percent=peer_percent,
+                country_name=country_name,
+            )
+        )
+    if bot is not None and bot.gender_age_pos is not None:
+        bot_percent = rv_comparison_percent(user_value, bot.gender_age_pos.rv_rank)
+        bullets.append(
+            message(
+                "find_own_place_compare_bot_peers",
+                channel,
+                percent=bot_percent,
+                country_name=country_name,
+            )
+        )
+    return bullets
+
+
+def _compact_index_section(
+    *,
+    index_kind: str,
+    user_value: float,
+    own_place: OwnPlaceResult,
+    peers: GenderAgePeerSample | None,
+    channel: str | None,
+) -> tuple[list[str], dict[str, Any] | None]:
+    ctx = own_place.context
+    index_name = SV_INDEX_TITLE if index_kind == "sv" else RV_INDEX_TITLE
+    describe = describe_sv_score if index_kind == "sv" else describe_rv_score
+    lead_in = _sv_lead_in if index_kind == "sv" else _rv_lead_in
+
+    lines = [
+        message(
+            "find_own_place_index_value",
+            channel,
+            index_name=index_name,
+            value=user_value,
+        ),
+        describe(user_value),
+        lead_in(user_value, channel) + ":",
+        *_comparison_bullets(
+            channel=channel,
+            country_name=ctx.country_name,
+            global_pos=own_place.global_pos,
+            gender_age_pos=own_place.gender_age_pos,
+            bot=own_place.bot,
+            index_kind=index_kind,
+            user_value=user_value,
+        ),
+    ]
+
+    chart = None
+    if peers is not None:
+        if index_kind == "sv":
+            chart = _chart_meta(
+                kind="sv",
+                user_value=float(user_value),
+                peer_values=list(peers.sv_values),
+                title=SV_INDEX_TITLE,
+                x_label=SV_AXIS_LABEL,
+            )
+        else:
+            chart = _chart_meta(
+                kind="rv",
+                user_value=float(user_value),
+                peer_values=list(peers.rv_values),
+                title=RV_INDEX_TITLE,
+                x_label=RV_AXIS_LABEL,
+            )
+
+    return lines, chart
 
 
 def build_own_place_presentation(
@@ -258,17 +218,31 @@ def build_own_place_presentation(
     elif ctx.used_default_country and not profile.country_text:
         parts.append(message("find_own_place_country_default", channel))
 
-    charts: list[dict[str, Any]] = []
     peers = own_place.gender_age_peers
+    charts: list[dict[str, Any]] = []
 
-    if peers is not None:
-        sv_parts, sv_chart = _sv_section(user_sv, peers, ctx, channel)
-        parts.extend(sv_parts)
+    if own_place.global_pos is not None:
+        parts.append(message("find_own_place_intro", channel))
+
+        sv_lines, sv_chart = _compact_index_section(
+            index_kind="sv",
+            user_value=float(user_sv),
+            own_place=own_place,
+            peers=peers,
+            channel=channel,
+        )
+        parts.append("\n".join(sv_lines))
         if sv_chart is not None:
             charts.append(sv_chart)
 
-        rv_parts, rv_chart = _rv_section(user_rv, peers, ctx, channel)
-        parts.extend(rv_parts)
+        rv_lines, rv_chart = _compact_index_section(
+            index_kind="rv",
+            user_value=float(user_rv),
+            own_place=own_place,
+            peers=peers,
+            channel=channel,
+        )
+        parts.append("\n".join(rv_lines))
         if rv_chart is not None:
             charts.append(rv_chart)
     elif profile.age is not None and ctx.age_sample_too_small:
@@ -283,18 +257,6 @@ def build_own_place_presentation(
         )
     else:
         parts.append(message("find_own_place_secondary_hint", channel))
-
-    if own_place.bot is not None:
-        parts.extend(
-            _bot_section(
-                float(user_rv),
-                float(user_sv),
-                own_place.bot,
-                ctx,
-                profile,
-                channel,
-            )
-        )
 
     meta: dict[str, Any] = {}
     if charts:

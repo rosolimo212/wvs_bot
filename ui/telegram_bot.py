@@ -17,6 +17,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from aiogram import Bot, Dispatcher, F
+from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -41,6 +42,7 @@ from ui.base import build_app_service
 from ui.find_country_delivery import deliver_find_country_telegram
 from ui.helpers import apply_response, build_payload, store_identity
 from ui.telegram_session import build_telegram_bot
+from ui.telegram_format import markdown_bold_to_telegram_html
 from ui.interactive_client import (
     enrich_find_country_console,
     handle_name_entered,
@@ -96,6 +98,17 @@ def _state_for_screen(screen: Screen) -> State:
     return Flow.main_menu
 
 
+def _telegram_text(text: str, channel: str) -> tuple[str, ParseMode | None]:
+    if channel != "telegram" or not text.strip():
+        return text, None
+    return markdown_bold_to_telegram_html(text), ParseMode.HTML
+
+
+async def _answer_text(message: Message, text: str, *, markup, channel: str) -> None:
+    body, parse_mode = _telegram_text(text, channel)
+    await message.answer(body, reply_markup=markup, parse_mode=parse_mode)
+
+
 async def _send_response(
     message: Message,
     state: FSMContext,
@@ -114,7 +127,7 @@ async def _send_response(
     await state.update_data(**data)
 
     if delivery is not None:
-        await message.answer(delivery["text"], reply_markup=markup)
+        await _answer_text(message, delivery["text"], markup=markup, channel=channel)
         if delivery.get("png_bytes"):
             await bot.send_photo(
                 message.chat.id,
@@ -128,7 +141,7 @@ async def _send_response(
     await state.update_data(**data)
 
     if own_place_delivery is not None:
-        await message.answer(own_place_delivery["text"], reply_markup=markup)
+        await _answer_text(message, own_place_delivery["text"], markup=markup, channel=channel)
         for png_bytes, filename in own_place_delivery.get("png_list", []):
             await bot.send_photo(
                 message.chat.id,
@@ -137,7 +150,7 @@ async def _send_response(
         return
 
     text = data.get("last_text", "")
-    await message.answer(text, reply_markup=markup)
+    await _answer_text(message, text, markup=markup, channel=channel)
 
 
 async def run_telegram(config: dict[str, Any]) -> None:

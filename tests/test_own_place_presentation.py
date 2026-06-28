@@ -40,7 +40,7 @@ def _sample_own_place() -> OwnPlaceResult:
     )
 
 
-def test_own_place_presentation_sv_before_rv() -> None:
+def test_own_place_presentation_compact_format() -> None:
     text, meta = build_own_place_presentation(
         user_rv=18.0,
         user_sv=16.0,
@@ -50,32 +50,30 @@ def test_own_place_presentation_sv_before_rv() -> None:
         unknown_count=0,
         warn_inaccurate=False,
     )
+    assert message("find_own_place_intro", None) in text
     sv_pos = text.index("Ценности выживания")
     rv_pos = text.index("Традиционные")
     assert sv_pos < rv_pos
     assert "составляет 16" in text
     assert "составляет 18" in text
-    assert "самовыражения" in text
+    assert message("find_own_place_sv_lead_self_expression", None) + ":" in text
+    assert message(
+        "find_own_place_compare_wvs_country",
+        None,
+        percent=60,
+        country_name="Россия",
+    ) in text
+    assert message(
+        "find_own_place_compare_wvs_peers",
+        None,
+        percent=60,
+        country_name="Россия",
+    ) in text
     assert meta.get("show_own_place_charts") is True
     assert len(meta["own_place_charts"]) == 2
-    assert meta["own_place_charts"][0]["kind"] == "sv"
-    assert meta["own_place_charts"][1]["kind"] == "rv"
 
 
-def test_own_place_presentation_no_duplicate_full_indices() -> None:
-    text, _ = build_own_place_presentation(
-        user_rv=18.0,
-        user_sv=16.0,
-        own_place=_sample_own_place(),
-        profile=SecondaryProfile(1990, "Россия", "Женщина"),
-        channel=None,
-        unknown_count=0,
-        warn_inaccurate=False,
-    )
-    assert text.count("составляет") == 2
-
-
-def test_own_place_presentation_includes_bot_comparison_without_counts() -> None:
+def test_own_place_presentation_includes_bot_bullet() -> None:
     own_place = _sample_own_place()
     own_place = OwnPlaceResult(
         global_pos=own_place.global_pos,
@@ -102,7 +100,10 @@ def test_own_place_presentation_includes_bot_comparison_without_counts() -> None
         unknown_count=0,
         warn_inaccurate=False,
     )
-    assert message("find_own_place_bot_intro", None) in text
-    assert "других пользователей бота" in text
+    assert message(
+        "find_own_place_compare_bot_peers",
+        None,
+        percent=45,
+        country_name="Россия",
+    ) in text
     assert "12" not in text
-    assert "сверстников вашего пола среди пользователей бота" in text

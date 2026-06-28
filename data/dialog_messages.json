@@ -210,6 +210,96 @@
     },
     {
       "id": 67,
+      "name": "find_own_place_intro",
+      "when": "Вступление на экране «Понять своё место».",
+      "default": "Сейчас мы сравним ваши результаты с результатами других людей, которые заполняли анкету.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 68,
+      "name": "find_own_place_sv_lead_survival",
+      "when": "SV ниже 10: вводная строка перед списком сравнений.",
+      "default": "Ваши ценности выживания выше, чем у",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 69,
+      "name": "find_own_place_sv_lead_balance",
+      "when": "SV 10–14: вводная строка перед списком сравнений.",
+      "default": "Показатель ценностей выживания/самовыражения выше, чем у",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 70,
+      "name": "find_own_place_sv_lead_self_expression",
+      "when": "SV 14+: вводная строка перед списком сравнений.",
+      "default": "Ваши ценности самовыражения выше, чем у",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 71,
+      "name": "find_own_place_rv_lead_traditional",
+      "when": "RV ниже 13: вводная строка перед списком сравнений.",
+      "default": "Ваши традиционные ценности выше, чем у",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 72,
+      "name": "find_own_place_rv_lead_balance",
+      "when": "RV 13–16: вводная строка перед списком сравнений.",
+      "default": "Показатель традиционных/секулярно-рациональных ценностей выше, чем у",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 73,
+      "name": "find_own_place_rv_lead_secular",
+      "when": "RV 16+: вводная строка перед списком сравнений.",
+      "default": "Ваши секулярно-рациональные ценности выше, чем у",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 74,
+      "name": "find_own_place_compare_wvs_country",
+      "when": "Пункт сравнения с WVS по стране.",
+      "default": "- {percent}% пользователей оригинальной анкеты из {country_name}",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 75,
+      "name": "find_own_place_compare_wvs_peers",
+      "when": "Пункт сравнения с WVS по возрасту и полу.",
+      "default": "- {percent}% пользователей оригинальной анкеты вашего возраста и пола из {country_name}",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 76,
+      "name": "find_own_place_compare_bot_peers",
+      "when": "Пункт сравнения с пользователями бота по возрасту и полу.",
+      "default": "- {percent}% пользователей бота вашего возраста и пола из {country_name}",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 77,
       "name": "find_own_place_peer_heading",
       "when": "Подпись к сравнению со сверстниками того же пола.",
       "default": "Среди {gender_label} вашего возраста (±{age_window} лет) из {country_name} ({sample_size} участников опроса WVS):",
