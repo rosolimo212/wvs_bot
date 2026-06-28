@@ -1,5 +1,16 @@
 # coding: utf-8
-"""Текст и meta для экрана «Понять своё место в социуме»."""
+"""
+Текст и meta для экрана «Понять своё место в социуме».
+
+Цель:
+    Собрать компактный текст (SV, затем RV) и meta для Plotly/PNG гистограмм.
+
+Вход:
+    RV/SV, OwnPlaceResult, SecondaryProfile, channel.
+
+Выход:
+    (text, meta) — meta содержит own_place_charts при наличии gender_age_peers.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,18 @@
 # coding: utf-8
 """
 AppService — оркестратор ядра WVS.
+
+Цель:
+    Единая точка входа для всех UI: анкеты, меню, FAQ, аналитика, логирование.
+
+Вход:
+    UserIdentity, channel, action (строка или ACTION_*), payload dict.
+
+Выход:
+    AppResponse для отображения клиентом.
+
+Риски:
+    Исключения в analytics логируются как analytics_error, не маскируются под «нет данных».
 """
 
 from __future__ import annotations
@@ -636,11 +648,13 @@ class AppService:
 
         try:
             result = find_nearest_country(
+                self.answer_store,
                 identity.user_id,
                 logging_config,
                 reference_schema=self._reference_schema(),
             )
         except Exception as exc:
+            # Не смешиваем с «анкета не заполнена» — пишем analytics_error и показываем модуль/тип.
             self.log_analytics_error(
                 identity,
                 channel,
@@ -857,6 +871,9 @@ class AppService:
     ) -> AppResponse:
         self._log_main_menu_visit(identity, channel)
         logging_config = self.config.get("logging") if self.config.get("app", {}).get("logging_enabled") else None
+        unknown_count = count_unknown_main_answers(
+            self.answer_store.list_answers(identity.user_id)
+        )
         indices = compute_main_indices(
             self.answer_store,
             identity.user_id,
@@ -864,17 +881,14 @@ class AppService:
         )
         if indices is None:
             rv, sv = 0, 0
-            unknown_count = 0
         else:
             rv, sv = indices
-            unknown_count = count_unknown_main_answers(
-                self.answer_store.list_answers(identity.user_id)
-            )
         return on_main_questionary_complete(
             rv=rv,
             sv=sv,
             unknown_count=unknown_count,
             channel=channel,
+            indices_available=indices is not None,
         )
 
     def _show_secondary_question(

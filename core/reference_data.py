@@ -19,6 +19,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from core.analytics.wvs_index_sums import (
+    GEN_SAMPLE_INDEX_COLUMNS,
+    aggregate_country_means,
+    compute_rv_sv_from_codes,
+)
 from core.country_profiles import load_country_profiles
 from core.db import postgres_connection
 
@@ -189,6 +194,58 @@ def enrich_country_data_from_profiles(
     return updated
 
 
+def recompute_country_indices_from_gen_sample(
+    logging_config: dict[str, Any],
+    *,
+    reference_schema: str = "wvs",
+) -> int:
+    """
+    Пересчитывает country_rv / country_sv в country_data как среднее RV/SV
+    респондентов gen_sample (missing «не знаю» не входят в сумму респондента).
+
+    :return: число обновлённых строк country_data
+    """
+    q_cols = ", ".join(f'"{name}"' for name in GEN_SAMPLE_INDEX_COLUMNS)
+    query = f"""
+        SELECT "B_COUNTRY_ALPHA", {q_cols}
+        FROM {reference_schema}.gen_sample
+        WHERE "B_COUNTRY_ALPHA" IS NOT NULL
+    """
+    respondent_rows: list[tuple[str, int, int]] = []
+    with postgres_connection(logging_config) as conn:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            for row in cur.fetchall():
+                country_code = str(row[0]).upper()
+                codes = {
+                    name: row[1 + index]
+                    for index, name in enumerate(GEN_SAMPLE_INDEX_COLUMNS)
+                }
+                indices = compute_rv_sv_from_codes(codes)
+                if indices is None:
+                    continue
+                rv, sv = indices
+                respondent_rows.append((country_code, rv, sv))
+
+    country_means = aggregate_country_means(respondent_rows)
+    if not country_means:
+        return 0
+
+    qualified = f"{reference_schema}.country_data"
+    update_sql = f"""
+        UPDATE {qualified}
+        SET country_rv = %s, country_sv = %s
+        WHERE country_code = %s
+    """
+    updated = 0
+    with postgres_connection(logging_config) as conn:
+        with conn.cursor() as cur:
+            for country_code, (country_rv, country_sv) in country_means.items():
+                cur.execute(update_sql, (country_rv, country_sv, country_code))
+                updated += cur.rowcount
+    return updated
+
+
 def setup_reference_tables(
     logging_config: dict[str, Any],
     *,
@@ -210,6 +267,7 @@ def setup_reference_tables(
     result: dict[str, int | None] = {
         "gen_sample": None,
         "country_data": None,
+        "country_index_updates": None,
         "profile_updates": None,
     }
 
@@ -231,6 +289,10 @@ def setup_reference_tables(
             csv_path=country_path,
             columns=COUNTRY_DATA_COLUMNS,
             truncate=truncate,
+        )
+        result["country_index_updates"] = recompute_country_indices_from_gen_sample(
+            logging_config,
+            reference_schema=reference_schema,
         )
 
     if enrich_profiles:

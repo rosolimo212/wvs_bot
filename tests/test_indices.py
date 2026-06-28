@@ -5,7 +5,7 @@ from core.analytics.indices import answer_value, compute_indices_from_answers
 
 def test_answer_value_from_variant() -> None:
     assert answer_value("Q173", "1. Религиозный человек") == 1
-    assert answer_value("Q173", "-1. Не знаю") == -1
+    assert answer_value("Q173", "-1. Не знаю") is None
 
 
 def test_answer_value_q17_text() -> None:

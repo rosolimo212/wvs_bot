@@ -3,7 +3,16 @@
 Telegram-клиент WVS на aiogram 3.
 
 Цель:
-    Полноценный клиент: тот же сценарий, что Streamlit, включая график страны.
+    Полноценный клиент: тот же сценарий, что Streamlit, включая PNG-графики.
+
+Вход:
+    config.yaml (telegram.token, logging, app).
+
+Выход:
+    Long-polling бот; ответы через AppService + доставка графиков.
+
+Примечание:
+    **жирный** markdown конвертируется в HTML (parse_mode=HTML) — см. telegram_format.py.
 """
 
 from __future__ import annotations

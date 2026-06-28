@@ -1,6 +1,15 @@
 # coding: utf-8
 """
 Отправка экрана «Найти страну»: текст, график, карточка, логирование таймингов.
+
+Цель:
+    После AppResponse собрать текст с карточкой страны и PNG для Telegram.
+
+Вход:
+    service, identity, state (screen/meta), config.
+
+Выход:
+    dict {text, png_bytes, timings} или None если не FIND_COUNTRY.
 """
 
 from __future__ import annotations

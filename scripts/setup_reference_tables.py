@@ -106,6 +106,7 @@ def main() -> int:
         f"Готово ({reference_schema}): "
         f"gen_sample={counts.get('gen_sample')}, "
         f"country_data={counts.get('country_data')}, "
+        f"country_index_updates={counts.get('country_index_updates')}, "
         f"profile_updates={counts.get('profile_updates')}"
     )
     return 0

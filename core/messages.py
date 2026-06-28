@@ -3,7 +3,13 @@
 Тексты диалогов с пользователем (data/dialog_messages.json).
 
 Цель:
-    Вынести все user-facing строки из кода в один JSON для правки и локализации.
+    Вынести все user-facing строки из кода в JSON для правки и локализации.
+
+Вход:
+    name сообщения, channel (streamlit→browser, telegram, console), placeholders.
+
+Выход:
+    Готовая строка; для telegram/browser можно задать override в JSON.
 """
 
 from __future__ import annotations

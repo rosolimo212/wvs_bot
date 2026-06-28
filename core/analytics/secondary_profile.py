@@ -1,5 +1,16 @@
 # coding: utf-8
-"""Данные респондента из дополнительной анкеты."""
+"""
+Данные респондента из дополнительной анкеты.
+
+Цель:
+    Извлечь birth_year, country_text, gender, age из user_reviews.
+
+Вход:
+    Список ответов {qv_id, answer_text}.
+
+Выход:
+    SecondaryProfile с флагом has_demographics.
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,18 @@
 # coding: utf-8
 """
 Мозг системы — чистая логика сценария без I/O.
+
+Цель:
+    По состоянию экрана и channel собрать AppResponse (текст, кнопки, meta).
+
+Вход:
+    Параметры экрана, channel, placeholders для message().
+
+Выход:
+    AppResponse — без обращений к БД, сети и файлам.
+
+Примечание:
+    AppService вызывает brain после загрузки данных из stores/logger.
 """
 
 from __future__ import annotations
@@ -209,11 +221,13 @@ def on_main_questionary_complete(
     sv: int,
     channel: str | None = None,
     unknown_count: int = 0,
+    indices_available: bool = True,
 ) -> AppResponse:
     intro = message("main_questionary_complete_intro", channel)
-    indices = format_indices_summary(float(rv), float(sv))
-    parts = [intro, indices]
-    if unknown_count > 5:
+    parts = [intro]
+    if indices_available:
+        parts.append(format_indices_summary(float(rv), float(sv)))
+    if unknown_count >= 5:
         parts.append(message("main_questionary_indices_inaccurate_warning", channel))
     outro = message("main_questionary_complete_outro", channel)
     parts.append(outro)

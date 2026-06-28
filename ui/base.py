@@ -1,6 +1,15 @@
 # coding: utf-8
 """
 Общие вспомогательные функции для UI-клиентов.
+
+Цель:
+    Собрать AppService из config (logger + answer stores + AppService).
+
+Вход:
+    config.yaml dict.
+
+Выход:
+    Готовый AppService для streamlit/telegram/console.
 """
 
 from __future__ import annotations
