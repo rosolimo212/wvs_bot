@@ -10,6 +10,7 @@ from typing import Any
 
 from core.questionnaire.loader import question_input_mode
 
+from core.analytics.index_interpretation import format_indices_summary
 from core.learn_more import (
     is_back_to_learn_more,
     learn_more_answer_buttons,
@@ -210,7 +211,7 @@ def on_main_questionary_complete(
     unknown_count: int = 0,
 ) -> AppResponse:
     intro = message("main_questionary_complete_intro", channel)
-    indices = message("main_questionary_indices", channel, rv=rv, sv=sv)
+    indices = format_indices_summary(float(rv), float(sv))
     parts = [intro, indices]
     if unknown_count > 5:
         parts.append(message("main_questionary_indices_inaccurate_warning", channel))
@@ -287,16 +288,16 @@ def on_find_country(
     country_sv: float,
     channel: str | None = None,
 ) -> AppResponse:
+    indices = format_indices_summary(float(rv), float(sv))
+    country_line = message(
+        "find_country_result",
+        channel,
+        country_code=country_code,
+        country_rv=country_rv,
+        country_sv=country_sv,
+    )
     return AppResponse(
-        text=message(
-            "find_country_result",
-            channel,
-            rv=rv,
-            sv=sv,
-            country_code=country_code,
-            country_rv=country_rv,
-            country_sv=country_sv,
-        ),
+        text=f"{indices}\n\n{country_line}",
         buttons=[back_to_menu_button(channel)],
         screen=Screen.FIND_COUNTRY,
         meta={

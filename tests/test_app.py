@@ -317,7 +317,8 @@ def test_main_complete_shows_indices() -> None:
     )
     assert response.screen == Screen.MAIN_MENU
     assert message("main_questionary_complete_intro", "streamlit") in response.text
-    assert "традиционных/секулярных" in response.text
+    assert "традиционных/секулярно-рациональных" in response.text
+    assert "составляет" in response.text
     assert message("main_questionary_complete_outro", "streamlit") in response.text
 
 
