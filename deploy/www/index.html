@@ -3,110 +3,306 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>World Values Survey Bot</title>
+  <meta name="description" content="Короткий опрос по методике World Values Survey: узнайте свои ценности, найдите ближайшую страну и сравните себя с людьми по всему миру. Бесплатно, за несколько минут.">
+  <title>Опрос ценностей — World Values Survey Bot</title>
   <link rel="icon" href="/hqdefault.jpg" type="image/jpeg">
   <link rel="apple-touch-icon" href="/hqdefault.jpg">
   <style>
-    :root { --text: #1a1a1a; --muted: #555; --link: #2563eb; --bg: #fafafa; --card: #fff; }
+    :root {
+      --text: #1c1917;
+      --muted: #57534e;
+      --link: #1d4ed8;
+      --link-hover: #1e40af;
+      --bg: #fafaf9;
+      --card: #fff;
+      --accent: #0f766e;
+      --accent-soft: #ecfdf5;
+      --border: #e7e5e4;
+    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: system-ui, -apple-system, sans-serif;
-      line-height: 1.55;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      line-height: 1.6;
       color: var(--text);
       background: var(--bg);
     }
+    a { color: var(--link); }
+    a:hover { color: var(--link-hover); }
+
+    .hero {
+      background: linear-gradient(160deg, #ecfdf5 0%, #fafaf9 55%, #eff6ff 100%);
+      border-bottom: 1px solid var(--border);
+    }
+    .hero-inner,
     main {
-      max-width: 40rem;
+      max-width: 42rem;
       margin: 0 auto;
-      padding: 2rem 1.25rem 3rem;
+      padding: 0 1.25rem;
     }
-    h1 { font-size: 1.5rem; margin: 0 0 0.5rem; }
-    .lead { color: var(--muted); margin: 0 0 1.5rem; }
-    .card {
-      background: var(--card);
-      border: 1px solid #e5e5e5;
-      border-radius: 8px;
-      padding: 1.25rem 1.5rem;
-      margin-bottom: 1.5rem;
-    }
-    h2 { font-size: 1rem; margin: 0 0 0.75rem; }
-    ul { margin: 0; padding-left: 1.25rem; }
-    li { margin: 0.35rem 0; }
-    .cta { margin: 1.5rem 0; }
-    .cta a {
+    .hero-inner { padding-top: 2.5rem; padding-bottom: 2rem; }
+
+    .eyebrow {
       display: inline-block;
-      margin-right: 0.75rem;
-      margin-bottom: 0.5rem;
-      padding: 0.6rem 1.1rem;
+      margin: 0 0 0.75rem;
+      padding: 0.25rem 0.65rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      background: var(--accent-soft);
+      border-radius: 999px;
+    }
+    h1 {
+      font-size: clamp(1.65rem, 4vw, 2rem);
+      line-height: 1.25;
+      margin: 0 0 0.75rem;
+    }
+    .lead {
+      color: var(--muted);
+      margin: 0 0 1.5rem;
+      font-size: 1.05rem;
+    }
+
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin: 0 0 1rem;
+    }
+    .cta a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.75rem 1.2rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .cta a:hover { transform: translateY(-1px); }
+    .cta-primary {
       background: var(--link);
       color: #fff;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: 500;
+      box-shadow: 0 2px 8px rgba(29, 78, 216, 0.25);
     }
-    .cta a.secondary {
+    .cta-primary:hover { color: #fff; background: var(--link-hover); }
+    .cta-secondary {
       background: #fff;
       color: var(--link);
-      border: 1px solid var(--link);
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     }
-    .badge {
-      font-size: 0.75rem;
+    .cta-note {
+      margin: 0;
+      font-size: 0.85rem;
       color: var(--muted);
-      font-weight: normal;
     }
-    .note, footer { font-size: 0.85rem; color: var(--muted); }
-    footer { margin-top: 2rem; border-top: 1px solid #e5e5e5; padding-top: 1rem; }
-    a { color: var(--link); }
-    hr { border: none; border-top: 1px solid #e5e5e5; margin: 1.5rem 0; }
+
+    main { padding: 2rem 1.25rem 3rem; }
+
+    h2 {
+      font-size: 1.15rem;
+      margin: 2rem 0 0.75rem;
+    }
+    h2:first-child { margin-top: 0; }
+
+    p { margin: 0 0 1rem; }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.15rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .card h3 {
+      margin: 0 0 0.5rem;
+      font-size: 1rem;
+    }
+    .card p:last-child { margin-bottom: 0; }
+
+    .grid {
+      display: grid;
+      gap: 0.85rem;
+    }
+    @media (min-width: 520px) {
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+    }
+
+    .steps {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+    .steps li {
+      position: relative;
+      margin: 0 0 0.85rem;
+      padding-left: 2.4rem;
+    }
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 0.1rem;
+      width: 1.6rem;
+      height: 1.6rem;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 700;
+      line-height: 1.6rem;
+      text-align: center;
+    }
+    .steps strong { display: block; margin-bottom: 0.15rem; }
+
+    .disclaimer {
+      margin-top: 2rem;
+      padding: 1rem 1.15rem;
+      font-size: 0.9rem;
+      color: var(--muted);
+      background: #fff;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+    }
+
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+    footer p { margin: 0 0 0.5rem; }
   </style>
 </head>
 <body>
+  <header class="hero">
+    <div class="hero-inner">
+      <p class="eyebrow">Научный опрос · несколько минут</p>
+      <h1>Какие ценности вам ближе — и где в мире живут похожие на вас люди?</h1>
+      <p class="lead">
+        Короткая анкета на основе <a href="https://www.worldvaluessurvey.org/">World Values Survey</a> —
+        крупнейшего международного исследования человеческих ценностей с&nbsp;1981&nbsp;года.
+        Ответьте на&nbsp;13&nbsp;вопросов и&nbsp;сразу получите результат: два индекса,
+        ближайшую страну на&nbsp;карте и&nbsp;сравнение с&nbsp;людьми из&nbsp;вашей страны и&nbsp;возраста.
+      </p>
+
+      <div class="cta">
+        <a class="cta-primary" href="https://streamlit.worldvaluessurveybot.info/">
+          Пройти в браузере
+        </a>
+        <a class="cta-secondary" href="https://t.me/values_counter_bot">
+          Открыть в Telegram
+        </a>
+      </div>
+      <p class="cta-note">Бесплатно · можно прерваться и продолжить позже · данные используются только в исследовательских целях</p>
+    </div>
+  </header>
+
   <main>
-    <h1>World Values Survey Bot</h1>
-    <p class="lead">
-      Короткая анкета в духе <a href="https://www.worldvaluessurvey.org/">World Values Survey</a>:
-      индексы ценностей (RV/SV), ближайшая страна и место среди выборки.
+    <h2>Что это за исследование</h2>
+    <p>
+      <strong>World Values Survey (WVS)</strong> — программа, в которой социологи из десятков стран
+      более 40&nbsp;лет опрашивают людей о том, что для них важно: семья, традиции, безопасность,
+      самореализация, доверие к институтам и многое другое. На основе огромных массивов данных
+      <a href="https://www.worldvaluessurvey.org/WVSOnline.jsp?WVS=IGUANAWELZEL">Рональд Инглхарт и Кристиан Вельцель</a>
+      выделили две оси, на которых можно описать ценности человека или целого общества.
+    </p>
+    <p>
+      Полный опрос WVS — сотни вопросов и несколько часов. Мы взяли <strong>13&nbsp;вопросов</strong>,
+      которые сильнее всего влияют на итог, и добавили мгновенную обратную связь — чтобы вы не только
+      участвовали в исследовании, но и сразу увидели свою «картину».
     </p>
 
+    <div class="grid grid-2">
+      <div class="card">
+        <h3>Традиционные ↔ Секулярные</h3>
+        <p class="muted" style="margin:0;color:var(--muted);font-size:0.95rem;">
+          Насколько для вас важны религия, традиции и авторитет — или, наоборот,
+          рациональный взгляд и самостоятельные решения.
+        </p>
+      </div>
+      <div class="card">
+        <h3>Выживание ↔ Самовыражение</h3>
+        <p style="margin:0;color:var(--muted);font-size:0.95rem;">
+          Ориентация на безопасность и материальную стабильность — или на личную свободу,
+          участие в жизни общества и качество жизни.
+        </p>
+      </div>
+    </div>
+
+    <h2>Что вы получите</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Два индекса о себе</h3>
+        <p>Узнаете, где вы на карте ценностей — без ярлыков «хороший/плохой». Индексы описывают реальность, а не оценивают человека.</p>
+      </div>
+      <div class="card">
+        <h3>«Найти страну»</h3>
+        <p>Интерактивная карта: увидите, какая страна по ценностям ближе всего к вам, и как вы соотноситесь с другими государствами.</p>
+      </div>
+      <div class="card">
+        <h3>«Место в социуме»</h3>
+        <p>Сравнение с участниками опроса WVS из вашей страны — и с другими пользователями бота. Нужна короткая доп. анкета (страна, год рождения, пол).</p>
+      </div>
+      <div class="card">
+        <h3>Можно позвать друзей</h3>
+        <p>Если знакомые тоже пройдут опрос, вы сможете сравнить результаты — это часть исследовательского опыта.</p>
+      </div>
+    </div>
+
+    <h2>Как это работает</h2>
+    <ol class="steps">
+      <li>
+        <strong>Выберите удобный канал</strong>
+        Веб-версия с графиками или Telegram-бот — один и тот же опрос, прогресс сохраняется.
+      </li>
+      <li>
+        <strong>Ответьте на 13 вопросов</strong>
+        Примерно 5–7 минут. Можно вернуться позже с того же места.
+      </li>
+      <li>
+        <strong>Посмотрите результаты</strong>
+        Индексы, карта стран и сравнение с выборкой — сразу после заполнения.
+      </li>
+    </ol>
+
+    <h2>Где пройти опрос</h2>
     <div class="cta">
-      <a href="http://streamlit.worldvaluessurveybot.info/">Пройти опрос (веб)</a>
-      <a class="secondary" href="https://t.me/values_counter_bot">
+      <a class="cta-primary" href="https://streamlit.worldvaluessurveybot.info/">
+        Веб-версия
+      </a>
+      <a class="cta-secondary" href="https://t.me/values_counter_bot">
         Telegram @values_counter_bot
-        <span class="badge">— в разработке</span>
       </a>
     </div>
 
-    <div class="card">
-      <h2>Что умеет бот</h2>
-      <ul>
-        <li>Основная анкета — 13 вопросов</li>
-        <li>Дополнительная — о респонденте</li>
-        <li>Найти страну по ценностям</li>
-        <li>Место в обществе (сравнение с выборкой WVS)</li>
-      </ul>
-    </div>
-
-    <p class="note">
-      Это <strong>не</strong> официальный сайт WVS — пилотный инструмент для обучения и исследований.
-    </p>
-
-    <hr>
-
-    <h1 lang="en">World Values Survey Bot</h1>
-    <p class="lead" lang="en">
-      A short WVS-style questionnaire with instant feedback: value indices, nearest country, rank in the reference sample.
-    </p>
-    <div class="cta">
-      <a href="http://streamlit.worldvaluessurveybot.info/">Take the survey (web)</a>
-      <a class="secondary" href="https://t.me/values_counter_bot">
-        Telegram @values_counter_bot
-        <span class="badge">— in development</span>
-      </a>
+    <div class="disclaimer">
+      <p>
+        <strong>Важно:</strong> этот сайт и бот — <em>не</em> официальный ресурс World Values Survey.
+        Это пилотный инструмент для обучения и академических исследований. Создатели не используют
+        ответы для рекламы и не делают политических выводов. Участие добровольное; результаты носят
+        справочный характер.
+      </p>
+      <p>
+        Подробнее об оригинальном исследовании:
+        <a href="https://www.worldvaluessurvey.org/">worldvaluessurvey.org</a>
+      </p>
     </div>
 
     <footer>
-      <a href="https://www.worldvaluessurvey.org/">worldvaluessurvey.org</a>
+      <p>World Values Survey Bot · worldvaluessurveybot.info</p>
+      <p>
+        <a href="https://streamlit.worldvaluessurveybot.info/">Опрос в браузере</a>
+        ·
+        <a href="https://t.me/values_counter_bot">Telegram-бот</a>
+        ·
+        <a href="https://www.worldvaluessurvey.org/">Официальный WVS</a>
+      </p>
     </footer>
   </main>
 </body>
