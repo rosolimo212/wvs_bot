@@ -520,6 +520,13 @@ class AppService:
         confirm: bool = False,
     ) -> AppResponse:
         identity = self._resolve_identity(identity, channel)
+        if confirm:
+            return on_telegram_name_confirm(
+                user_name,
+                channel,
+                registration_source=registration_source,
+            )
+
         now = datetime.now()
         self.logger.upsert_user(
             identity=identity,
@@ -537,8 +544,6 @@ class AppService:
                 "source": registration_source,
             },
         )
-        if confirm:
-            return on_telegram_name_confirm(user_name, channel)
         self._log_main_menu_visit(identity, channel)
         return on_name_entered(
             user_name,
@@ -558,13 +563,15 @@ class AppService:
             return on_empty_name(channel)
 
         identity = self._resolve_identity(identity, channel)
-        self._touch_user(identity, channel, payload)
-        self._log_main_menu_visit(identity, channel)
-        return on_name_entered(
-            user_name,
+        registration_source = str(
+            payload.get("registration_source") or "telegram_username"
+        )
+        return self._register_with_name(
+            identity,
             channel,
-            is_registration=True,
-            **self._menu_meta(identity),
+            user_name,
+            registration_source=registration_source,
+            confirm=False,
         )
 
     def _handle_name_entered(

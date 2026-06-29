@@ -189,8 +189,10 @@ async def run_telegram(config: dict[str, Any]) -> None:
 
         session_state: dict[str, Any] = {}
         store_identity(session_state, identity)
-        sync_profile_from_db(service, identity, session_state)
         apply_response(session_state, response)
+        pending_name = str((response.meta or {}).get("user_name") or "").strip()
+        if pending_name:
+            session_state["user_name"] = pending_name
         session_state["main_questionary_complete"] = service.is_main_questionary_complete(identity)
         await state.update_data(**session_state)
         await state.set_state(_state_for_screen(response.screen))
@@ -212,11 +214,14 @@ async def run_telegram(config: dict[str, Any]) -> None:
         identity = _identity_from_data(data)
         text = (message.text or "").strip()
         payload = build_payload(
-            user_name=data.get("user_name"),
+            user_name=data.get("user_name") or (data.get("meta") or {}).get("user_name"),
             registration_date=data.get("registration_date"),
             text=text,
             screen=Screen.NAME_CONFIRM,
         )
+        registration_source = (data.get("meta") or {}).get("registration_source")
+        if registration_source:
+            payload["registration_source"] = registration_source
 
         if text == confirm_name_button(channel):
             action = ACTION_NAME_CONFIRMED

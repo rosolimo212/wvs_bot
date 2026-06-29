@@ -73,8 +73,6 @@ def resolve_telegram_user_name(
     tg = telegram_username.strip().lstrip("@")
     if stored == ext and tg:
         return tg
-    if not stored and tg:
-        return tg
     return stored_name.strip()
 
 
@@ -141,7 +139,12 @@ def on_name_entered(
     )
 
 
-def on_telegram_name_confirm(user_name: str, channel: str | None = None) -> AppResponse:
+def on_telegram_name_confirm(
+    user_name: str,
+    channel: str | None = None,
+    *,
+    registration_source: str = "telegram_username",
+) -> AppResponse:
     display = format_display_name(user_name, with_at=True)
     confirm = message("telegram_name_confirm", channel, display=display)
     return AppResponse(
@@ -151,6 +154,10 @@ def on_telegram_name_confirm(user_name: str, channel: str | None = None) -> AppR
             change_name_button(channel),
         ],
         screen=Screen.NAME_CONFIRM,
+        meta={
+            "user_name": user_name,
+            "registration_source": registration_source,
+        },
     )
 
 

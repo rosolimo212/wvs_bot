@@ -7,9 +7,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-import pandas as pd
-
-from core.db import get_engine, postgres_connection
+from core.db import postgres_connection
 from core.identity import make_user_id
 from core.logging.base import EventLogger
 from core.models import UserIdentity
@@ -172,27 +170,57 @@ class PostgresLogger(EventLogger):
         event_parameters: dict[str, Any] | None = None,
         timestamp: datetime | None = None,
     ) -> None:
-        event_time = timestamp or datetime.now()
         params_json = None
         if event_parameters is not None:
             params_json = json.dumps(event_parameters, ensure_ascii=False)
 
-        row = {
-            "timestamp": event_time,
-            "user_id": identity.user_id,
-            "internal_user_id": identity.internal_user_id,
-            "external_user_id": identity.external_user_id,
-            "event_name": event_name,
-            "channel": channel,
-            "event_parameters": params_json,
-        }
-        df = pd.DataFrame([row])
-
-        engine = get_engine(self.logging_config)
-        df.to_sql(
-            "events",
-            con=engine,
-            schema=self.schema,
-            if_exists="append",
-            index=False,
-        )
+        table_name = f"{self.schema}.events"
+        with postgres_connection(self.logging_config) as conn:
+            with conn.cursor() as cur:
+                if timestamp is None:
+                    cur.execute(
+                        f"""
+                        INSERT INTO {table_name} (
+                            timestamp,
+                            user_id,
+                            internal_user_id,
+                            external_user_id,
+                            event_name,
+                            channel,
+                            event_parameters
+                        )
+                        VALUES (NOW(), %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            identity.user_id,
+                            identity.internal_user_id,
+                            identity.external_user_id,
+                            event_name,
+                            channel,
+                            params_json,
+                        ),
+                    )
+                else:
+                    cur.execute(
+                        f"""
+                        INSERT INTO {table_name} (
+                            timestamp,
+                            user_id,
+                            internal_user_id,
+                            external_user_id,
+                            event_name,
+                            channel,
+                            event_parameters
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (
+                            timestamp,
+                            identity.user_id,
+                            identity.internal_user_id,
+                            identity.external_user_id,
+                            event_name,
+                            channel,
+                            params_json,
+                        ),
+                    )
