@@ -64,6 +64,7 @@ from core.brain import (
     on_secondary_questionary_complete,
     on_start,
     on_telegram_name_confirm,
+    resolve_telegram_user_name,
 )
 from core.messages import change_name_button, confirm_name_button, message
 from core.questionnaire.loader import question_input_mode
@@ -308,6 +309,24 @@ class AppService:
 
         profile = self.logger.get_user_profile(identity)
         existing_name = (profile or {}).get("user_name", "").strip()
+        telegram_username = ""
+        if channel == "telegram":
+            telegram_username = str(context.get("telegram_username") or "").strip()
+            resolved_name = resolve_telegram_user_name(
+                existing_name,
+                external_user_id=identity.external_user_id,
+                telegram_username=telegram_username,
+            )
+            if resolved_name and resolved_name != existing_name:
+                self._touch_user(
+                    identity,
+                    channel,
+                    {
+                        "user_name": resolved_name,
+                        "registration_date": (profile or {}).get("registration_date"),
+                    },
+                )
+                existing_name = resolved_name
         if existing_name:
             self._touch_user(
                 identity,
@@ -318,7 +337,12 @@ class AppService:
                 },
             )
             self._log_main_menu_visit(identity, channel)
-            return on_name_entered(existing_name, channel, **menu_meta)
+            return on_name_entered(
+                existing_name,
+                channel,
+                telegram_username=telegram_username,
+                **menu_meta,
+            )
 
         self._ensure_user_stub(identity, channel)
         self.logger.log_event(

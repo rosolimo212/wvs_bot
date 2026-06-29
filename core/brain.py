@@ -57,6 +57,44 @@ def format_display_name(user_name: str, *, with_at: bool = False) -> str:
     return clean
 
 
+def resolve_telegram_user_name(
+    stored_name: str,
+    *,
+    external_user_id: str,
+    telegram_username: str = "",
+) -> str:
+    """
+    Нормализует user_name для Telegram.
+
+    В старых записях вместо @username мог сохраниться numeric external_user_id.
+    """
+    stored = stored_name.strip().lstrip("@")
+    ext = external_user_id.strip()
+    tg = telegram_username.strip().lstrip("@")
+    if stored == ext and tg:
+        return tg
+    if not stored and tg:
+        return tg
+    return stored_name.strip()
+
+
+def greeting_display_name(
+    user_name: str,
+    channel: str | None = None,
+    *,
+    telegram_username: str = "",
+) -> str:
+    """Имя в приветствии главного меню (для Telegram @username — с «@»)."""
+    clean = user_name.strip().lstrip("@")
+    if not clean:
+        return user_name
+    if channel == "telegram":
+        tg = telegram_username.strip().lstrip("@")
+        if tg and clean.lower() == tg.lower():
+            return f"@{clean}"
+    return clean
+
+
 def compose_start_screen_text(channel: str | None = None, *, ask_name: bool = True) -> str:
     """Вводный текст о боте и, при необходимости, приглашение представиться."""
     intro = message("start_intro", channel)
@@ -87,10 +125,16 @@ def on_name_entered(
     *,
     main_questionary_complete: bool = False,
     is_registration: bool = False,
+    telegram_username: str = "",
 ) -> AppResponse:
     greeting = "main_menu_greeting_new" if is_registration else "main_menu_greeting_return"
+    display_name = greeting_display_name(
+        user_name,
+        channel,
+        telegram_username=telegram_username,
+    )
     return AppResponse(
-        text=message(greeting, channel, user_name=user_name),
+        text=message(greeting, channel, user_name=display_name),
         buttons=menu_buttons(channel),
         screen=Screen.MAIN_MENU,
         meta={"main_questionary_complete": main_questionary_complete},
