@@ -23,8 +23,8 @@ def test_count_unknown_main_answers() -> None:
 
 
 def test_should_warn_inaccurate_indices() -> None:
-    assert not should_warn_inaccurate_indices(4)
-    assert should_warn_inaccurate_indices(5)
+    assert not should_warn_inaccurate_indices(5)
+    assert should_warn_inaccurate_indices(6)
 
 
 def test_resolve_country_case_insensitive() -> None:

@@ -1,18 +1,6 @@
 # coding: utf-8
 """
 AppService — оркестратор ядра WVS.
-
-Цель:
-    Единая точка входа для всех UI: анкеты, меню, FAQ, аналитика, логирование.
-
-Вход:
-    UserIdentity, channel, action (строка или ACTION_*), payload dict.
-
-Выход:
-    AppResponse для отображения клиентом.
-
-Риски:
-    Исключения в analytics логируются как analytics_error, не маскируются под «нет данных».
 """
 
 from __future__ import annotations
@@ -64,7 +52,6 @@ from core.brain import (
     on_secondary_questionary_complete,
     on_start,
     on_telegram_name_confirm,
-    resolve_telegram_user_name,
 )
 from core.messages import change_name_button, confirm_name_button, message
 from core.questionnaire.loader import question_input_mode
@@ -309,24 +296,6 @@ class AppService:
 
         profile = self.logger.get_user_profile(identity)
         existing_name = (profile or {}).get("user_name", "").strip()
-        telegram_username = ""
-        if channel == "telegram":
-            telegram_username = str(context.get("telegram_username") or "").strip()
-            resolved_name = resolve_telegram_user_name(
-                existing_name,
-                external_user_id=identity.external_user_id,
-                telegram_username=telegram_username,
-            )
-            if resolved_name and resolved_name != existing_name:
-                self._touch_user(
-                    identity,
-                    channel,
-                    {
-                        "user_name": resolved_name,
-                        "registration_date": (profile or {}).get("registration_date"),
-                    },
-                )
-                existing_name = resolved_name
         if existing_name:
             self._touch_user(
                 identity,
@@ -337,12 +306,7 @@ class AppService:
                 },
             )
             self._log_main_menu_visit(identity, channel)
-            return on_name_entered(
-                existing_name,
-                channel,
-                telegram_username=telegram_username,
-                **menu_meta,
-            )
+            return on_name_entered(existing_name, channel, **menu_meta)
 
         self._ensure_user_stub(identity, channel)
         self.logger.log_event(
@@ -520,13 +484,6 @@ class AppService:
         confirm: bool = False,
     ) -> AppResponse:
         identity = self._resolve_identity(identity, channel)
-        if confirm:
-            return on_telegram_name_confirm(
-                user_name,
-                channel,
-                registration_source=registration_source,
-            )
-
         now = datetime.now()
         self.logger.upsert_user(
             identity=identity,
@@ -544,6 +501,8 @@ class AppService:
                 "source": registration_source,
             },
         )
+        if confirm:
+            return on_telegram_name_confirm(user_name, channel)
         self._log_main_menu_visit(identity, channel)
         return on_name_entered(
             user_name,
@@ -563,15 +522,13 @@ class AppService:
             return on_empty_name(channel)
 
         identity = self._resolve_identity(identity, channel)
-        registration_source = str(
-            payload.get("registration_source") or "telegram_username"
-        )
-        return self._register_with_name(
-            identity,
-            channel,
+        self._touch_user(identity, channel, payload)
+        self._log_main_menu_visit(identity, channel)
+        return on_name_entered(
             user_name,
-            registration_source=registration_source,
-            confirm=False,
+            channel,
+            is_registration=True,
+            **self._menu_meta(identity),
         )
 
     def _handle_name_entered(
@@ -679,13 +636,11 @@ class AppService:
 
         try:
             result = find_nearest_country(
-                self.answer_store,
                 identity.user_id,
                 logging_config,
                 reference_schema=self._reference_schema(),
             )
         except Exception as exc:
-            # Не смешиваем с «анкета не заполнена» — пишем analytics_error и показываем модуль/тип.
             self.log_analytics_error(
                 identity,
                 channel,
@@ -902,9 +857,6 @@ class AppService:
     ) -> AppResponse:
         self._log_main_menu_visit(identity, channel)
         logging_config = self.config.get("logging") if self.config.get("app", {}).get("logging_enabled") else None
-        unknown_count = count_unknown_main_answers(
-            self.answer_store.list_answers(identity.user_id)
-        )
         indices = compute_main_indices(
             self.answer_store,
             identity.user_id,
@@ -912,14 +864,17 @@ class AppService:
         )
         if indices is None:
             rv, sv = 0, 0
+            unknown_count = 0
         else:
             rv, sv = indices
+            unknown_count = count_unknown_main_answers(
+                self.answer_store.list_answers(identity.user_id)
+            )
         return on_main_questionary_complete(
             rv=rv,
             sv=sv,
             unknown_count=unknown_count,
             channel=channel,
-            indices_available=indices is not None,
         )
 
     def _show_secondary_question(

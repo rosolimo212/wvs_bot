@@ -1,19 +1,5 @@
 # coding: utf-8
-"""
-Сравнение индексов пользователя с выборкой WVS и другими пользователями бота.
-
-Цель:
-    Посчитать процентили (rank) пользователя среди gen_sample и среди ответов бота.
-
-Вход:
-    RV/SV, SecondaryProfile, logging_config (postgres), reference_schema.
-
-Выход:
-    OwnPlaceResult: global/age/gender позиции, peer sample для графиков, bot comparison.
-
-Риски:
-    MIN_STRAT_SAMPLE=30 — окно возраста расширяется ±3/5/10 лет, пока не наберётся выборка.
-"""
+"""Сравнение индексов пользователя с выборкой WVS и другими пользователями бота."""
 
 from __future__ import annotations
 
@@ -27,11 +13,6 @@ from core.analytics.country_lookup import (
     resolve_country_code,
 )
 from core.analytics.indices import compute_indices_from_answers
-from core.analytics.wvs_index_sums import (
-    GEN_SAMPLE_INDEX_COLUMNS,
-    aggregate_country_means,
-    compute_rv_sv_from_codes,
-)
 from core.analytics.secondary_profile import SecondaryProfile, parse_secondary_profile
 from core.analytics.sql import fetch_all_rows
 from core.country_profiles import load_country_profiles
@@ -118,7 +99,6 @@ class OwnPlaceResult:
 
 
 def rank_percent(user_value: float, sample_values: list[float]) -> int:
-    """Доля выборки строго ниже user_value, в процентах 0–100."""
     if not sample_values:
         return 0
     lower = sum(1 for value in sample_values if value < user_value)
@@ -165,7 +145,6 @@ def _choose_age_rows(
     rows: list[GenSampleRow],
     age: int,
 ) -> tuple[int | None, list[GenSampleRow], bool]:
-    """Окно ±3/5/10 лет; too_small=True, если после ±10 всё ещё < MIN_STRAT_SAMPLE."""
     for window in AGE_WINDOWS:
         filtered = _filter_age(rows, age, window)
         if len(filtered) >= MIN_STRAT_SAMPLE:
@@ -241,11 +220,11 @@ def load_gen_sample_rows(
     reference_schema: str = "wvs",
 ) -> list[GenSampleRow]:
     schema = reference_schema
-    q_cols = ", ".join(f'"{name}"' for name in GEN_SAMPLE_INDEX_COLUMNS)
     query = f"""
         SELECT
             "B_COUNTRY_ALPHA",
-            {q_cols},
+            "Q173" + "Q45" + "Q69" + "Q6" + "Q27" + "Q70" + "Q65" AS rv,
+            "Q17" + "Q8" + "Q11" + "Q30" + "Q29" + "Q33" + "Q152" AS sv,
             "Q262",
             "Q260"
         FROM {schema}.gen_sample
@@ -253,24 +232,14 @@ def load_gen_sample_rows(
     """
     rows: list[GenSampleRow] = []
     for row in fetch_all_rows(query, logging_config):
-        country_code = str(row[0]).upper()
-        codes = {
-            name: row[1 + index]
-            for index, name in enumerate(GEN_SAMPLE_INDEX_COLUMNS)
-        }
-        indices = compute_rv_sv_from_codes(codes)
-        if indices is None:
-            continue
-        rv, sv = indices
-        age = int(row[1 + len(GEN_SAMPLE_INDEX_COLUMNS)])
-        gender_raw = row[2 + len(GEN_SAMPLE_INDEX_COLUMNS)]
+        gender_raw = row[4]
         gender_code = int(gender_raw) if gender_raw is not None else None
         rows.append(
             GenSampleRow(
-                country_code=country_code,
-                rv=float(rv),
-                sv=float(sv),
-                age=age,
+                country_code=str(row[0]).upper(),
+                rv=float(row[1]),
+                sv=float(row[2]),
+                age=int(row[3]),
                 gender_code=gender_code,
             )
         )

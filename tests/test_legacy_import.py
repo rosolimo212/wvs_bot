@@ -7,10 +7,39 @@ from core.migration.legacy_import import (
     filter_legacy_csv_rows,
     map_legacy_event,
     map_legacy_user_id,
+    _collect_users_from_rows,
+    _collect_users_from_users_csv,
+    _merge_user_records,
     _parse_event_parameters,
+    _pick_user_name,
     import_legacy_bot,
     import_legacy_from_csv_by_usernames,
 )
+
+
+def test_pick_user_name_prefers_real_name_over_external_id() -> None:
+    assert _pick_user_name("Rkhbvs", "309551566", external_user_id="309551566") == "Rkhbvs"
+    assert _pick_user_name("309551566", "Rkhbvs", external_user_id="309551566") == "Rkhbvs"
+    assert _pick_user_name("", "kirsl", external_user_id="109992493") == "kirsl"
+
+
+def test_merge_user_records_keeps_csv_name_when_events_have_no_user_name() -> None:
+    users = _collect_users_from_users_csv(
+        [
+            {
+                "external_user_id": "309551566",
+                "user_name": "Rkhbvs",
+                "registration_time": "2024-01-01 09:00:00",
+            }
+        ]
+    )
+    supplemental = _collect_users_from_rows(
+        [],
+        [],
+        [{"user_id": "309551566", "insert_time": "2024-01-02 10:00:00"}],
+    )
+    merged = _merge_user_records(users, supplemental)
+    assert merged["309551566"].user_name == "Rkhbvs"
 
 
 def test_map_legacy_user_id_from_telegram() -> None:

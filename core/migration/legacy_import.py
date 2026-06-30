@@ -105,6 +105,35 @@ def _normalize_legacy_user_id(raw: str) -> tuple[str, str]:
     return legacy, legacy
 
 
+def _is_placeholder_user_name(user_name: str, external_user_id: str) -> bool:
+    """Пустое имя или numeric external_user_id, сохранённый вместо @username."""
+    name = user_name.strip()
+    if not name:
+        return True
+    ext = external_user_id.strip()
+    return bool(ext) and name == ext
+
+
+def _pick_user_name(
+    current: str,
+    candidate: str,
+    *,
+    external_user_id: str,
+) -> str:
+    """Предпочитает реальный user_name, а не numeric external_user_id."""
+    cur = current.strip()
+    cand = candidate.strip()
+    cur_placeholder = _is_placeholder_user_name(cur, external_user_id)
+    cand_placeholder = _is_placeholder_user_name(cand, external_user_id)
+    if cand_placeholder:
+        return cur
+    if cur_placeholder:
+        return cand
+    if len(cand) > len(cur):
+        return cand
+    return cur
+
+
 def map_legacy_user_id(legacy_user_id: str) -> str:
     """Новый PK users из legacy Telegram ID."""
     _, external = _normalize_legacy_user_id(legacy_user_id)
@@ -181,7 +210,7 @@ def _collect_users_from_users_csv(
         external_id = str(row.get("external_user_id", "")).strip()
         if not external_id:
             continue
-        user_name = str(row.get("user_name", "")).strip() or external_id
+        user_name = str(row.get("user_name", "")).strip()
         ts = (
             _parse_timestamp(
                 row.get("registration_time")
@@ -210,8 +239,11 @@ def _merge_user_records(
             primary[key] = record
             continue
         existing = primary[key]
-        if len(record.user_name) > len(existing.user_name):
-            existing.user_name = record.user_name
+        existing.user_name = _pick_user_name(
+            existing.user_name,
+            record.user_name,
+            external_user_id=key,
+        )
         if record.registration_date < existing.registration_date:
             existing.registration_date = record.registration_date
         if record.last_active_at > existing.last_active_at:
@@ -234,7 +266,7 @@ def _collect_users_from_rows(
             if not external_id:
                 continue
 
-            user_name = str(row.get("user_name", "")).strip() or external_id
+            user_name = str(row.get("user_name", "")).strip()
             ts = _parse_timestamp(row.get("insert_time") or row.get("timestamp")) or now
             key = external_id
             mapped_user_id = make_user_id(LEGACY_CHANNEL, external_id)
@@ -251,8 +283,11 @@ def _collect_users_from_rows(
                 continue
 
             record = users[key]
-            if len(user_name) > len(record.user_name):
-                record.user_name = user_name
+            record.user_name = _pick_user_name(
+                record.user_name,
+                user_name,
+                external_user_id=external_id,
+            )
             if ts < record.registration_date:
                 record.registration_date = ts
             if ts > record.last_active_at:
@@ -433,6 +468,24 @@ def import_legacy_bot(
 
             for record in users.values():
                 if record.external_user_id in existing:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""
+                            UPDATE {schema}.users
+                            SET user_name = %s
+                            WHERE external_user_id = %s
+                              AND registration_channel = %s
+                              AND (
+                                  trim(coalesce(user_name, '')) = ''
+                                  OR user_name = external_user_id
+                              )
+                            """,
+                            (
+                                record.user_name,
+                                record.external_user_id,
+                                LEGACY_CHANNEL,
+                            ),
+                        )
                     stats.users_skipped += 1
                     continue
                 internal_user_id = _allocate_internal_user_id(conn, schema)
@@ -471,6 +524,10 @@ def import_legacy_bot(
                     return mapped if mapped else None
                 return mapped
 
+            user_name_by_user_id = {
+                record.user_id: record.user_name for record in users.values()
+            }
+
             def _insert_answers(rows: list[dict[str, str]], table: str) -> int:
                 inserted = 0
                 with conn.cursor() as cur:
@@ -482,6 +539,13 @@ def import_legacy_bot(
                         if qv_number <= 0:
                             continue
                         insert_time = _parse_timestamp(row.get("insert_time")) or datetime.now()
+                        row_user_name = str(row.get("user_name", "")).strip()
+                        external_id = str(row.get("user_id", "")).strip()
+                        answer_user_name = _pick_user_name(
+                            user_name_by_user_id.get(new_user_id, ""),
+                            row_user_name,
+                            external_user_id=external_id,
+                        )
                         cur.execute(
                             f"""
                             INSERT INTO {schema}.{table}
@@ -496,7 +560,7 @@ def import_legacy_bot(
                             """,
                             (
                                 new_user_id,
-                                str(row.get("user_name", "")).strip() or new_user_id[:8],
+                                answer_user_name,
                                 str(row.get("qv_id", "")).strip(),
                                 qv_number,
                                 str(row.get("qv_text", "")).strip(),
