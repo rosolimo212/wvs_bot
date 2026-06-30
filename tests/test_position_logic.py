@@ -129,3 +129,24 @@ def test_compute_bot_comparison_excludes_empty_country() -> None:
     assert result.other_users_count == 2
     assert result.global_pos is not None
     assert result.global_pos.rv_rank == 50
+    assert result.compare_pos is not None
+
+
+def test_bot_compare_fallback_when_few_gender_age_peers() -> None:
+    profile = SecondaryProfile(birth_year=1990, country_text="Россия", gender="Женщина")
+    bot_rows = [
+        BotUserRow("u1", "RUS", 8.0, 20.0, 35, 2),
+        BotUserRow("u2", "RUS", 12.0, 22.0, 36, 2),
+        BotUserRow("u3", "RUS", 15.0, 18.0, 40, 1),
+    ]
+    result = _compute_bot_comparison(
+        user_rv=19.0,
+        user_sv=17.0,
+        profile=profile,
+        country_code="RUS",
+        bot_rows=bot_rows,
+    )
+    assert result is not None
+    assert result.compare_scope in {"age", "country", "gender_age"}
+    assert result.compare_pos is not None
+    assert result.compare_sample_size >= 2

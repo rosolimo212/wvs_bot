@@ -103,16 +103,34 @@ def _comparison_bullets(
                     country_name=country_name,
                 )
             )
-        if bot is not None and bot.gender_age_pos is not None:
-            bot_percent = sv_comparison_percent(user_value, bot.gender_age_pos.sv_rank)
-            bullets.append(
-                message(
-                    "find_own_place_compare_bot_peers",
-                    channel,
-                    percent=bot_percent,
-                    country_name=country_name,
+        if bot is not None and bot.compare_pos is not None:
+            if bot.compare_scope == "gender_age" and bot.gender_age_pos is not None:
+                bot_percent = sv_comparison_percent(user_value, bot.gender_age_pos.sv_rank)
+                bullets.append(
+                    message(
+                        "find_own_place_compare_bot_peers",
+                        channel,
+                        percent=bot_percent,
+                        country_name=country_name,
+                    )
                 )
-            )
+            else:
+                bot_percent = sv_comparison_percent(user_value, bot.compare_pos.sv_rank)
+                scope_key = {
+                    "age": "find_own_place_compare_bot_age",
+                    "country": "find_own_place_compare_bot_country",
+                    "all": "find_own_place_compare_bot_all",
+                }.get(bot.compare_scope)
+                if scope_key:
+                    bullets.append(
+                        message(
+                            scope_key,
+                            channel,
+                            percent=bot_percent,
+                            country_name=country_name,
+                            sample_size=bot.compare_sample_size,
+                        )
+                    )
         return bullets
 
     percent = rv_comparison_percent(user_value, global_pos.rv_rank)
@@ -134,16 +152,34 @@ def _comparison_bullets(
                 country_name=country_name,
             )
         )
-    if bot is not None and bot.gender_age_pos is not None:
-        bot_percent = rv_comparison_percent(user_value, bot.gender_age_pos.rv_rank)
-        bullets.append(
-            message(
-                "find_own_place_compare_bot_peers",
-                channel,
-                percent=bot_percent,
-                country_name=country_name,
+    if bot is not None and bot.compare_pos is not None:
+        if bot.compare_scope == "gender_age" and bot.gender_age_pos is not None:
+            bot_percent = rv_comparison_percent(user_value, bot.gender_age_pos.rv_rank)
+            bullets.append(
+                message(
+                    "find_own_place_compare_bot_peers",
+                    channel,
+                    percent=bot_percent,
+                    country_name=country_name,
+                )
             )
-        )
+        else:
+            bot_percent = rv_comparison_percent(user_value, bot.compare_pos.rv_rank)
+            scope_key = {
+                "age": "find_own_place_compare_bot_age",
+                "country": "find_own_place_compare_bot_country",
+                "all": "find_own_place_compare_bot_all",
+            }.get(bot.compare_scope)
+            if scope_key:
+                bullets.append(
+                    message(
+                        scope_key,
+                        channel,
+                        percent=bot_percent,
+                        country_name=country_name,
+                        sample_size=bot.compare_sample_size,
+                    )
+                )
     return bullets
 
 

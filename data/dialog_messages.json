@@ -299,6 +299,33 @@
       "browser": ""
     },
     {
+      "id": 78,
+      "name": "find_own_place_compare_bot_age",
+      "when": "Сравнение с ботом по возрасту (мало данных по полу).",
+      "default": "- {percent}% пользователей бота вашего возраста из {country_name} (мало данных по полу, n={sample_size})",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 79,
+      "name": "find_own_place_compare_bot_country",
+      "when": "Сравнение со всеми пользователями бота из страны.",
+      "default": "- {percent}% пользователей бота из {country_name} (мало данных по возрасту и полу, n={sample_size})",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 80,
+      "name": "find_own_place_compare_bot_all",
+      "when": "Сравнение со всеми пользователями бота.",
+      "default": "- {percent}% всех пользователей бота (мало данных по стране, n={sample_size})",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
       "id": 77,
       "name": "find_own_place_peer_heading",
       "when": "Подпись к сравнению со сверстниками того же пола.",

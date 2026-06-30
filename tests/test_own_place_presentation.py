@@ -89,6 +89,9 @@ def test_own_place_presentation_includes_bot_bullet() -> None:
             age_window=3,
             age_sample_size=4,
             age_sample_too_small=False,
+            compare_pos=UserPosition(rv=18.0, sv=16.0, rv_rank=50, sv_rank=45),
+            compare_scope="gender_age",
+            compare_sample_size=4,
         ),
     )
     text, _ = build_own_place_presentation(
