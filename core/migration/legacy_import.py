@@ -515,6 +515,101 @@ def import_legacy_bot(
     return stats
 
 
+def _normalize_usernames(usernames: list[str]) -> set[str]:
+    return {name.strip().lower() for name in usernames if name.strip()}
+
+
+def _row_matches_usernames(row: dict[str, str], names: set[str]) -> bool:
+    user_name = str(row.get("user_name", "")).strip().lower()
+    return user_name in names
+
+
+def filter_legacy_csv_rows(
+    usernames: list[str],
+    *,
+    users_csv: Path | None,
+    main_answers_csv: Path,
+    reviews_csv: Path,
+    events_csv: Path,
+) -> tuple[list[dict[str, str]], list[dict[str, str]], list[dict[str, str]], list[dict[str, str]]]:
+    """Оставляет в CSV только строки выбранных user_name (без учёта регистра)."""
+    names = _normalize_usernames(usernames)
+    if not names:
+        return [], [], [], []
+
+    user_rows = _read_csv_rows(users_csv) if users_csv and users_csv.is_file() else []
+    main_rows = [row for row in _read_csv_rows(main_answers_csv) if _row_matches_usernames(row, names)]
+    review_rows = [row for row in _read_csv_rows(reviews_csv) if _row_matches_usernames(row, names)]
+    user_rows = [row for row in user_rows if _row_matches_usernames(row, names)]
+
+    legacy_ids: set[str] = set()
+    for row in (*main_rows, *review_rows, *user_rows):
+        uid = str(row.get("user_id", "")).strip()
+        if uid:
+            legacy_ids.add(uid)
+    for row in user_rows:
+        ext = str(row.get("external_user_id", "")).strip()
+        if ext:
+            legacy_ids.add(ext)
+
+    event_rows = [
+        row
+        for row in _read_csv_rows(events_csv)
+        if str(row.get("user_id", "")).strip() in legacy_ids
+    ]
+    return user_rows, main_rows, review_rows, event_rows
+
+
+def import_legacy_from_csv_by_usernames(
+    logging_config: dict[str, Any],
+    usernames: list[str],
+    *,
+    users_csv: Path | None,
+    main_answers_csv: Path,
+    reviews_csv: Path,
+    events_csv: Path,
+    dry_run: bool = False,
+) -> LegacyImportStats:
+    """Импорт выбранных legacy-пользователей из CSV (scripts/migrate_legacy)."""
+    import tempfile
+
+    user_rows, main_rows, review_rows, event_rows = filter_legacy_csv_rows(
+        usernames,
+        users_csv=users_csv,
+        main_answers_csv=main_answers_csv,
+        reviews_csv=reviews_csv,
+        events_csv=events_csv,
+    )
+    if not user_rows and not main_rows and not review_rows:
+        return LegacyImportStats()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        root = Path(tmp_dir)
+        users_path = root / "users.csv"
+        main_path = root / "user_answers.csv"
+        reviews_path = root / "user_reviews.csv"
+        events_path = root / "events.csv"
+
+        if user_rows:
+            _write_csv_rows(
+                users_path,
+                ["external_user_id", "user_name", "registration_time"],
+                user_rows,
+            )
+        _write_csv_rows(main_path, list(MAIN_ANSWER_COLUMNS), main_rows)
+        _write_csv_rows(reviews_path, list(REVIEW_COLUMNS), review_rows)
+        _write_csv_rows(events_path, list(EVENT_COLUMNS), event_rows)
+
+        return import_legacy_bot(
+            logging_config,
+            users_csv=users_path if user_rows else None,
+            main_answers_csv=main_path,
+            reviews_csv=reviews_path,
+            events_csv=events_path,
+            dry_run=dry_run,
+        )
+
+
 def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
