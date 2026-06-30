@@ -21,6 +21,7 @@ REQUIRED_MAIN_ANSWERS = 13
 MIN_STRAT_SAMPLE = 30
 MIN_BOT_GLOBAL_SAMPLE = 1
 MIN_BOT_AGE_SAMPLE = 2
+MIN_BOT_GENDER_AGE_SAMPLE = 3
 AGE_WINDOWS = (3, 5, 10)
 
 
@@ -71,6 +72,9 @@ class BotComparisonResult:
     age_window: int | None
     age_sample_size: int | None
     age_sample_too_small: bool
+    compare_pos: UserPosition | None = None
+    compare_scope: str = ""
+    compare_sample_size: int = 0
 
 
 @dataclass(frozen=True)
@@ -165,6 +169,49 @@ def _choose_bot_age_rows(
     if not filtered:
         return last_window, [], True
     return last_window, filtered, len(filtered) < MIN_BOT_AGE_SAMPLE
+
+
+def _resolve_bot_compare(
+    *,
+    user_rv: float,
+    user_sv: float,
+    profile: SecondaryProfile,
+    country_rows: list[BotUserRow],
+    all_bot_rows: list[BotUserRow],
+    global_pos: UserPosition | None,
+    age_pos: UserPosition | None,
+    gender_age_pos: UserPosition | None,
+    age_rows: list[BotUserRow],
+    gender_age_rows: list[BotUserRow],
+    age_sample_too_small: bool,
+) -> tuple[UserPosition | None, str, int]:
+    """Выбирает выборку бота для сравнения: пол/возраст → возраст → страна → все."""
+    if (
+        profile.age is not None
+        and _gender_to_code(profile.gender) is not None
+        and len(gender_age_rows) >= MIN_BOT_GENDER_AGE_SAMPLE
+        and gender_age_pos is not None
+    ):
+        return gender_age_pos, "gender_age", len(gender_age_rows)
+
+    if (
+        profile.age is not None
+        and age_rows
+        and len(age_rows) >= MIN_BOT_AGE_SAMPLE
+        and not age_sample_too_small
+        and age_pos is not None
+    ):
+        return age_pos, "age", len(age_rows)
+
+    if global_pos is not None and country_rows:
+        return global_pos, "country", len(country_rows)
+
+    if all_bot_rows:
+        all_pos = _position_from_sample(user_rv, user_sv, all_bot_rows)
+        if all_pos is not None:
+            return all_pos, "all", len(all_bot_rows)
+
+    return None, "", 0
 
 
 def load_gen_sample_rows(
@@ -295,7 +342,9 @@ def _compute_bot_comparison(
     bot_rows: list[BotUserRow],
 ) -> BotComparisonResult | None:
     country_rows = [row for row in bot_rows if row.country_code == country_code]
-    if len(country_rows) < MIN_BOT_GLOBAL_SAMPLE:
+    if len(country_rows) < MIN_BOT_GLOBAL_SAMPLE and bot_rows:
+        country_rows = list(bot_rows)
+    if not country_rows:
         return None
 
     global_pos = _position_from_sample(user_rv, user_sv, country_rows)
@@ -304,6 +353,8 @@ def _compute_bot_comparison(
     age_window = None
     age_sample_size = None
     age_sample_too_small = False
+    age_rows: list[BotUserRow] = []
+    gender_age_rows: list[BotUserRow] = []
 
     if profile.age is not None:
         age_window, age_rows, age_sample_too_small = _choose_bot_age_rows(
@@ -315,12 +366,26 @@ def _compute_bot_comparison(
             age_pos = _position_from_sample(user_rv, user_sv, age_rows)
 
         gender_code = _gender_to_code(profile.gender)
-        if gender_code is not None and age_pos is not None and age_rows:
+        if gender_code is not None and age_rows:
             gender_age_rows = [
                 row for row in age_rows if row.gender_code == gender_code
             ]
             if len(gender_age_rows) >= MIN_BOT_AGE_SAMPLE:
                 gender_age_pos = _position_from_sample(user_rv, user_sv, gender_age_rows)
+
+    compare_pos, compare_scope, compare_sample_size = _resolve_bot_compare(
+        user_rv=user_rv,
+        user_sv=user_sv,
+        profile=profile,
+        country_rows=country_rows,
+        all_bot_rows=bot_rows,
+        global_pos=global_pos,
+        age_pos=age_pos,
+        gender_age_pos=gender_age_pos,
+        age_rows=age_rows,
+        gender_age_rows=gender_age_rows,
+        age_sample_too_small=age_sample_too_small,
+    )
 
     return BotComparisonResult(
         global_pos=global_pos,
@@ -330,6 +395,9 @@ def _compute_bot_comparison(
         age_window=age_window,
         age_sample_size=age_sample_size,
         age_sample_too_small=age_sample_too_small,
+        compare_pos=compare_pos,
+        compare_scope=compare_scope,
+        compare_sample_size=compare_sample_size,
     )
 
 

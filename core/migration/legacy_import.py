@@ -513,3 +513,173 @@ def import_legacy_bot(
         _import_events(conn, schema, event_rows, user_id_map, stats)
 
     return stats
+
+
+def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({name: row.get(name, "") for name in fieldnames})
+
+
+def fetch_legacy_rows_by_usernames(
+    logging_config: dict[str, Any],
+    usernames: list[str],
+    *,
+    legacy_schema: str = "tl",
+) -> tuple[list[dict[str, str]], list[dict[str, str]], list[dict[str, str]], list[dict[str, str]]]:
+    """
+  Загружает строки из legacy-схемы tl по user_name (без учёта регистра).
+
+  :return: (users_rows, main_answers, reviews, events)
+    """
+    names = sorted({name.strip().lower() for name in usernames if name.strip()})
+    if not names:
+        return [], [], [], []
+
+    with postgres_connection(logging_config) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT DISTINCT user_id::text, user_name
+                FROM {legacy_schema}.user_answers
+                WHERE lower(trim(user_name)) = ANY(%s)
+                """,
+                (names,),
+            )
+            legacy_users = cur.fetchall()
+
+            if not legacy_users:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT user_id::text, user_name
+                    FROM {legacy_schema}.user_reviews
+                    WHERE lower(trim(user_name)) = ANY(%s)
+                    """,
+                    (names,),
+                )
+                legacy_users = cur.fetchall()
+
+            legacy_ids = [str(row[0]) for row in legacy_users]
+            if not legacy_ids:
+                return [], [], [], []
+
+            cur.execute(
+                f"""
+                SELECT user_id::text, user_name, qv_id, qv_number::text, qv_text, answer_text,
+                       insert_time::text
+                FROM {legacy_schema}.user_answers
+                WHERE user_id::text = ANY(%s)
+                ORDER BY user_id, qv_number
+                """,
+                (legacy_ids,),
+            )
+            main_rows = [
+                {
+                    "user_id": str(row[0]),
+                    "user_name": str(row[1] or ""),
+                    "qv_id": str(row[2] or ""),
+                    "qv_number": str(row[3] or ""),
+                    "qv_text": str(row[4] or ""),
+                    "answer_text": str(row[5] or ""),
+                    "insert_time": str(row[6] or ""),
+                }
+                for row in cur.fetchall()
+            ]
+
+            cur.execute(
+                f"""
+                SELECT user_id::text, user_name, qv_id, qv_number::text, qv_text, answer_text,
+                       insert_time::text
+                FROM {legacy_schema}.user_reviews
+                WHERE user_id::text = ANY(%s)
+                ORDER BY user_id, qv_number
+                """,
+                (legacy_ids,),
+            )
+            review_rows = [
+                {
+                    "user_id": str(row[0]),
+                    "user_name": str(row[1] or ""),
+                    "qv_id": str(row[2] or ""),
+                    "qv_number": str(row[3] or ""),
+                    "qv_text": str(row[4] or ""),
+                    "answer_text": str(row[5] or ""),
+                    "insert_time": str(row[6] or ""),
+                }
+                for row in cur.fetchall()
+            ]
+
+            cur.execute(
+                f"""
+                SELECT user_id::text, event_type, parameters::text, insert_time::text
+                FROM {legacy_schema}.wvs_events
+                WHERE user_id::text = ANY(%s)
+                ORDER BY insert_time
+                """,
+                (legacy_ids,),
+            )
+            event_rows = [
+                {
+                    "user_id": str(row[0]),
+                    "event_type": str(row[1] or ""),
+                    "parameters": str(row[2] or ""),
+                    "timestamp": str(row[3] or ""),
+                }
+                for row in cur.fetchall()
+            ]
+
+    users_rows = [
+        {
+            "external_user_id": str(row[0]),
+            "user_name": str(row[1] or row[0]),
+            "registration_time": "",
+        }
+        for row in legacy_users
+    ]
+    return users_rows, main_rows, review_rows, event_rows
+
+
+def import_legacy_from_tl_by_usernames(
+    logging_config: dict[str, Any],
+    usernames: list[str],
+    *,
+    legacy_schema: str = "tl",
+    dry_run: bool = False,
+) -> LegacyImportStats:
+    """Импорт выбранных legacy-пользователей напрямую из схемы tl."""
+    import tempfile
+
+    users_rows, main_rows, review_rows, event_rows = fetch_legacy_rows_by_usernames(
+        logging_config,
+        usernames,
+        legacy_schema=legacy_schema,
+    )
+    if not users_rows and not main_rows:
+        return LegacyImportStats()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        root = Path(tmp_dir)
+        users_csv = root / "users.csv"
+        main_csv = root / "user_answers.csv"
+        reviews_csv = root / "user_reviews.csv"
+        events_csv = root / "events.csv"
+
+        _write_csv_rows(
+            users_csv,
+            ["external_user_id", "user_name", "registration_time"],
+            users_rows,
+        )
+        _write_csv_rows(main_csv, list(MAIN_ANSWER_COLUMNS), main_rows)
+        _write_csv_rows(reviews_csv, list(REVIEW_COLUMNS), review_rows)
+        _write_csv_rows(events_csv, list(EVENT_COLUMNS), event_rows)
+
+        return import_legacy_bot(
+            logging_config,
+            users_csv=users_csv,
+            main_answers_csv=main_csv,
+            reviews_csv=reviews_csv,
+            events_csv=events_csv,
+            dry_run=dry_run,
+        )
