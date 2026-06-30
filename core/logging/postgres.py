@@ -189,7 +189,7 @@ class PostgresLogger(EventLogger):
                             channel,
                             event_parameters
                         )
-                        VALUES (NOW(), %s, %s, %s, %s, %s, %s, %s)
+                        VALUES (NOW(), %s, %s, %s, %s, %s, %s)
                         """,
                         (
                             identity.user_id,
