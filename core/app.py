@@ -52,6 +52,7 @@ from core.brain import (
     on_secondary_questionary_complete,
     on_start,
     on_telegram_name_confirm,
+    resolve_telegram_user_name,
 )
 from core.messages import change_name_button, confirm_name_button, message
 from core.questionnaire.loader import question_input_mode
@@ -296,7 +297,20 @@ class AppService:
 
         profile = self.logger.get_user_profile(identity)
         existing_name = (profile or {}).get("user_name", "").strip()
+        telegram_username = (
+            str(context.get("telegram_username") or "").strip()
+            if channel == "telegram"
+            else ""
+        )
         if existing_name:
+            if telegram_username:
+                resolved_name = resolve_telegram_user_name(
+                    existing_name,
+                    external_user_id=identity.external_user_id,
+                    telegram_username=telegram_username,
+                )
+                if resolved_name != existing_name:
+                    existing_name = resolved_name
             self._touch_user(
                 identity,
                 channel,
@@ -306,7 +320,12 @@ class AppService:
                 },
             )
             self._log_main_menu_visit(identity, channel)
-            return on_name_entered(existing_name, channel, **menu_meta)
+            return on_name_entered(
+                existing_name,
+                channel,
+                telegram_username=telegram_username,
+                **menu_meta,
+            )
 
         self._ensure_user_stub(identity, channel)
         self.logger.log_event(
@@ -316,16 +335,8 @@ class AppService:
             event_parameters=None,
         )
 
-        if channel == "telegram":
-            telegram_username = str(context.get("telegram_username") or "").strip()
-            if telegram_username:
-                return self._register_with_name(
-                    identity,
-                    channel,
-                    telegram_username.lstrip("@"),
-                    registration_source="telegram_username",
-                    confirm=True,
-                )
+        if telegram_username:
+            return on_telegram_name_confirm(telegram_username.lstrip("@"), channel)
 
         return on_start(channel)
 
@@ -522,7 +533,24 @@ class AppService:
             return on_empty_name(channel)
 
         identity = self._resolve_identity(identity, channel)
-        self._touch_user(identity, channel, payload)
+        registration_source = str(payload.get("registration_source") or "user_input")
+        now = datetime.now()
+        self.logger.upsert_user(
+            identity=identity,
+            user_name=user_name,
+            registration_date=now,
+            registration_channel=channel,
+            last_active_at=now,
+        )
+        self.logger.log_event(
+            identity=identity,
+            event_name="registration",
+            channel=channel,
+            event_parameters={
+                "user_name": user_name,
+                "source": registration_source,
+            },
+        )
         self._log_main_menu_visit(identity, channel)
         return on_name_entered(
             user_name,
@@ -857,19 +885,22 @@ class AppService:
     ) -> AppResponse:
         self._log_main_menu_visit(identity, channel)
         logging_config = self.config.get("logging") if self.config.get("app", {}).get("logging_enabled") else None
+        answers = self.answer_store.list_answers(identity.user_id)
+        unknown_count = count_unknown_main_answers(answers)
         indices = compute_main_indices(
             self.answer_store,
             identity.user_id,
             logging_config=logging_config,
         )
         if indices is None:
-            rv, sv = 0, 0
-            unknown_count = 0
-        else:
-            rv, sv = indices
-            unknown_count = count_unknown_main_answers(
-                self.answer_store.list_answers(identity.user_id)
+            return on_main_questionary_complete(
+                rv=0,
+                sv=0,
+                unknown_count=unknown_count,
+                indices_available=False,
+                channel=channel,
             )
+        rv, sv = indices
         return on_main_questionary_complete(
             rv=rv,
             sv=sv,

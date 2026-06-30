@@ -10,13 +10,18 @@ def test_main_questionary_complete_warns_many_unknown_answers() -> None:
     identity = service.logger.ensure_user("streamlit", "ext-unknown")
     _register(service, identity)
 
+    questions_by_id = {question["id"]: question for question in service._main_questions}
+
     response = None
     for question in service._main_questions:
         if question["id"] == "Q17":
             answer = "Трудолюбие"
             selected = ""
         else:
-            answer = "-1. Не знаю"
+            unknown_variant = next(
+                variant for variant in questions_by_id[question["id"]]["variants"] if variant.startswith("-1.")
+            )
+            answer = unknown_variant
             selected = answer
         response = service.handle_action(
             identity,
