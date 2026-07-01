@@ -664,6 +664,7 @@ class AppService:
 
         try:
             result = find_nearest_country(
+                self.answer_store,
                 identity.user_id,
                 logging_config,
                 reference_schema=self._reference_schema(),

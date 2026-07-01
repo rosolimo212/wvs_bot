@@ -178,8 +178,15 @@ def test_find_country_start_logs_answer_text() -> None:
         country_rv=9.5,
         country_sv=11.5,
     )
-    with patch("core.app.find_nearest_country", return_value=nearest):
+    with patch("core.app.find_nearest_country", return_value=nearest) as mock_country:
         response = service.handle_action(identity, "streamlit", ACTION_OPTION_3, payload)
+
+    mock_country.assert_called_once()
+    call_args, call_kwargs = mock_country.call_args
+    assert call_args[0] is service.answer_store
+    assert call_args[1] == identity.user_id
+    assert call_args[2] == service.config["logging"]
+    assert call_kwargs["reference_schema"] == "wvs"
 
     assert "find_counry_start" in logger.events
     idx = len(logger.events) - 1 - logger.events[::-1].index("find_counry_start")
