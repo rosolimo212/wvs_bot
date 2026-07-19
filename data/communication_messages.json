@@ -1,0 +1,9 @@
+{
+  "templates": {
+    "stub_empty": {
+      "template_id": "stub_empty",
+      "when": "Нулевая болванка: проверка доставки в stats-чат (сегмент test).",
+      "default": "WVS communication stub.\n\nПривет, {user_name}!"
+    }
+  }
+}

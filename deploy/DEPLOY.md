@@ -202,3 +202,26 @@ systemctl list-timers | grep wvs-daily
 
 Разовый прогон: `systemctl start wvs-daily-audience-report.service`  
 Логи: `journalctl -u wvs-daily-audience-report.service -n 50`
+
+## 9. Исходящие коммуникации (рассылки)
+
+Таблица журнала (один раз на DB):
+
+```bash
+psql -h <host> -U <user> -d communication -f sql/006_communications.sql
+```
+
+Шаблоны: `data/communication_messages.json`.  
+Ручной запуск (Telegram-VM):
+
+```bash
+# тест в stats-чат
+.venv/bin/python scripts/send_communication.py --template stub_empty --segment test --dry-run
+.venv/bin/python scripts/send_communication.py --template stub_empty --segment test
+
+# сегменты: test | all_users | primary_complete | both_complete
+```
+
+Идемпотентность: одна пара `(user_id, template_id)`.  
+Rate limit: не чаще одной коммуникации в час на `user_id` (пропуск без INSERT).  
+Пауза между сообщениями в прогоне: `--pause-sec` (по умолчанию 2).
