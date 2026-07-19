@@ -80,3 +80,37 @@ certbot --nginx -d streamlit.worldvaluessurveybot.info
 ```bash
 cd /root/python/wvs_bot && git pull && systemctl restart wvs-streamlit
 ```
+
+## 7. Daily audience report (Telegram-VM)
+
+Ежедневный дайджест в служебный чат в **11:04 Europe/Moscow**.
+
+1. В `config.yaml` на Telegram-VM:
+
+```yaml
+communication:
+  daily_audience_report:
+    enabled: true
+    chat_id: "-100xxxxxxxxxx"   # числовой id группы
+    timezone: Europe/Moscow
+```
+
+2. Проверка без отправки:
+
+```bash
+cd /root/python/wvs_bot
+.venv/bin/python scripts/send_daily_audience_report.py --dry-run
+```
+
+3. Установка timer:
+
+```bash
+cp deploy/wvs-daily-audience-report.service /etc/systemd/system/
+cp deploy/wvs-daily-audience-report.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now wvs-daily-audience-report.timer
+systemctl list-timers | grep wvs-daily
+```
+
+Разовый прогон: `systemctl start wvs-daily-audience-report.service`  
+Логи: `journalctl -u wvs-daily-audience-report.service -n 50`

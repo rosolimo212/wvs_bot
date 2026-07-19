@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+# coding: utf-8
+"""Ежедневный отчёт активности аудитории в служебный Telegram-чат."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Собрать метрики аудитории и отправить в Telegram-чат",
+    )
+    parser.add_argument("--config", type=Path, default=ROOT / "config.yaml")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Только напечатать отчёт, не отправлять",
+    )
+    parser.add_argument(
+        "--chat-id",
+        default=None,
+        help="Переопределить communication.daily_audience_report.chat_id",
+    )
+    args = parser.parse_args()
+
+    from core.communication.daily_audience import run_daily_audience_report
+    from core.config import load_app_config
+
+    config = load_app_config(args.config)
+    text = asyncio.run(
+        run_daily_audience_report(
+            config,
+            dry_run=args.dry_run,
+            chat_id=args.chat_id,
+        )
+    )
+    print(text)
+    if args.dry_run:
+        print("\n[dry-run] сообщение не отправлено", file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

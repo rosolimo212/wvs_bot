@@ -81,4 +81,10 @@ def load_app_config(yaml_file: str | Path = "config.yaml") -> dict[str, Any]:
     if isinstance(full_cfg.get("testing"), dict):
         result["testing"] = full_cfg["testing"]
 
+    if isinstance(full_cfg.get("analytics"), dict):
+        result["analytics"] = full_cfg["analytics"]
+
+    if isinstance(full_cfg.get("communication"), dict):
+        result["communication"] = full_cfg["communication"]
+
     return result

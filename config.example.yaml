@@ -34,3 +34,11 @@ analytics:
   reference_schema: wvs
   gen_sample_csv: gen_sample.csv
   country_data_csv: country_data.csv
+
+# Исходящая коммуникация (дайджесты; позже — триггеры)
+communication:
+  daily_audience_report:
+    enabled: true
+    # Числовой id группы (не invite-link). Узнать: getUpdates после сообщения в чате.
+    chat_id: ""
+    timezone: Europe/Moscow

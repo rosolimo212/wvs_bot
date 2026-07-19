@@ -1,0 +1,11 @@
+[Unit]
+Description=WVS daily audience report at 11:04 Europe/Moscow
+
+[Timer]
+Timezone=Europe/Moscow
+OnCalendar=*-*-* 11:04:00
+Persistent=true
+Unit=wvs-daily-audience-report.service
+
+[Install]
+WantedBy=timers.target

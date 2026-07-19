@@ -1,0 +1,11 @@
+[Unit]
+Description=WVS daily audience report (oneshot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/root/python/wvs_bot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/root/python/wvs_bot/.venv/bin/python /root/python/wvs_bot/scripts/send_daily_audience_report.py --config /root/python/wvs_bot/config.yaml
