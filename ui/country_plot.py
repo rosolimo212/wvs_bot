@@ -1,5 +1,16 @@
 # coding: utf-8
-"""График положения пользователя относительно стран."""
+"""
+График положения пользователя относительно стран.
+
+Цель:
+    Загрузка country_data, отрисовка scatter (matplotlib/plotly), экспорт PNG.
+
+Вход:
+    user_rv, user_sv, logging_config.
+
+Выход:
+    Figure + CountryPlotTimings; PNG bytes для Telegram.
+"""
 
 from __future__ import annotations
 

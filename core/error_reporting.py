@@ -1,5 +1,16 @@
 # coding: utf-8
-"""Форматирование исключений для логов и сообщений пользователю."""
+"""
+Форматирование исключений для логов и сообщений пользователю.
+
+Цель:
+    Единый разбор Exception → module, error_name, message, traceback для analytics_error.
+
+Вход:
+    feature name, BaseException.
+
+Выход:
+    dict для event_parameters и текста on_analytics_error.
+"""
 
 from __future__ import annotations
 

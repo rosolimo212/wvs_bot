@@ -1,4 +1,6 @@
--- запрос для того, чтобы получить wvs-баллы
+-- УСТАРЕЛО: find_nearest_country считается в Python (core/analytics/country.py).
+-- «Не знаю» не входит в сумму; см. core/analytics/wvs_index_sums.py
+-- Запрос для того, чтобы получить wvs-баллы
 -- которые можно сравнить с широкой выборкой
 WITH 
 base as 

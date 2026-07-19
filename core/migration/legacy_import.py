@@ -105,6 +105,35 @@ def _normalize_legacy_user_id(raw: str) -> tuple[str, str]:
     return legacy, legacy
 
 
+def _is_placeholder_user_name(user_name: str, external_user_id: str) -> bool:
+    """Пустое имя или numeric external_user_id, сохранённый вместо @username."""
+    name = user_name.strip()
+    if not name:
+        return True
+    ext = external_user_id.strip()
+    return bool(ext) and name == ext
+
+
+def _pick_user_name(
+    current: str,
+    candidate: str,
+    *,
+    external_user_id: str,
+) -> str:
+    """Предпочитает реальный user_name, а не numeric external_user_id."""
+    cur = current.strip()
+    cand = candidate.strip()
+    cur_placeholder = _is_placeholder_user_name(cur, external_user_id)
+    cand_placeholder = _is_placeholder_user_name(cand, external_user_id)
+    if cand_placeholder:
+        return cur
+    if cur_placeholder:
+        return cand
+    if len(cand) > len(cur):
+        return cand
+    return cur
+
+
 def map_legacy_user_id(legacy_user_id: str) -> str:
     """Новый PK users из legacy Telegram ID."""
     _, external = _normalize_legacy_user_id(legacy_user_id)
@@ -181,7 +210,7 @@ def _collect_users_from_users_csv(
         external_id = str(row.get("external_user_id", "")).strip()
         if not external_id:
             continue
-        user_name = str(row.get("user_name", "")).strip() or external_id
+        user_name = str(row.get("user_name", "")).strip()
         ts = (
             _parse_timestamp(
                 row.get("registration_time")
@@ -210,8 +239,11 @@ def _merge_user_records(
             primary[key] = record
             continue
         existing = primary[key]
-        if len(record.user_name) > len(existing.user_name):
-            existing.user_name = record.user_name
+        existing.user_name = _pick_user_name(
+            existing.user_name,
+            record.user_name,
+            external_user_id=key,
+        )
         if record.registration_date < existing.registration_date:
             existing.registration_date = record.registration_date
         if record.last_active_at > existing.last_active_at:
@@ -234,7 +266,7 @@ def _collect_users_from_rows(
             if not external_id:
                 continue
 
-            user_name = str(row.get("user_name", "")).strip() or external_id
+            user_name = str(row.get("user_name", "")).strip()
             ts = _parse_timestamp(row.get("insert_time") or row.get("timestamp")) or now
             key = external_id
             mapped_user_id = make_user_id(LEGACY_CHANNEL, external_id)
@@ -251,8 +283,11 @@ def _collect_users_from_rows(
                 continue
 
             record = users[key]
-            if len(user_name) > len(record.user_name):
-                record.user_name = user_name
+            record.user_name = _pick_user_name(
+                record.user_name,
+                user_name,
+                external_user_id=external_id,
+            )
             if ts < record.registration_date:
                 record.registration_date = ts
             if ts > record.last_active_at:
@@ -433,6 +468,24 @@ def import_legacy_bot(
 
             for record in users.values():
                 if record.external_user_id in existing:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            f"""
+                            UPDATE {schema}.users
+                            SET user_name = %s
+                            WHERE external_user_id = %s
+                              AND registration_channel = %s
+                              AND (
+                                  trim(coalesce(user_name, '')) = ''
+                                  OR user_name = external_user_id
+                              )
+                            """,
+                            (
+                                record.user_name,
+                                record.external_user_id,
+                                LEGACY_CHANNEL,
+                            ),
+                        )
                     stats.users_skipped += 1
                     continue
                 internal_user_id = _allocate_internal_user_id(conn, schema)
@@ -471,6 +524,10 @@ def import_legacy_bot(
                     return mapped if mapped else None
                 return mapped
 
+            user_name_by_user_id = {
+                record.user_id: record.user_name for record in users.values()
+            }
+
             def _insert_answers(rows: list[dict[str, str]], table: str) -> int:
                 inserted = 0
                 with conn.cursor() as cur:
@@ -482,6 +539,13 @@ def import_legacy_bot(
                         if qv_number <= 0:
                             continue
                         insert_time = _parse_timestamp(row.get("insert_time")) or datetime.now()
+                        row_user_name = str(row.get("user_name", "")).strip()
+                        external_id = str(row.get("user_id", "")).strip()
+                        answer_user_name = _pick_user_name(
+                            user_name_by_user_id.get(new_user_id, ""),
+                            row_user_name,
+                            external_user_id=external_id,
+                        )
                         cur.execute(
                             f"""
                             INSERT INTO {schema}.{table}
@@ -496,7 +560,7 @@ def import_legacy_bot(
                             """,
                             (
                                 new_user_id,
-                                str(row.get("user_name", "")).strip() or new_user_id[:8],
+                                answer_user_name,
                                 str(row.get("qv_id", "")).strip(),
                                 qv_number,
                                 str(row.get("qv_text", "")).strip(),
@@ -513,6 +577,101 @@ def import_legacy_bot(
         _import_events(conn, schema, event_rows, user_id_map, stats)
 
     return stats
+
+
+def _normalize_usernames(usernames: list[str]) -> set[str]:
+    return {name.strip().lower() for name in usernames if name.strip()}
+
+
+def _row_matches_usernames(row: dict[str, str], names: set[str]) -> bool:
+    user_name = str(row.get("user_name", "")).strip().lower()
+    return user_name in names
+
+
+def filter_legacy_csv_rows(
+    usernames: list[str],
+    *,
+    users_csv: Path | None,
+    main_answers_csv: Path,
+    reviews_csv: Path,
+    events_csv: Path,
+) -> tuple[list[dict[str, str]], list[dict[str, str]], list[dict[str, str]], list[dict[str, str]]]:
+    """Оставляет в CSV только строки выбранных user_name (без учёта регистра)."""
+    names = _normalize_usernames(usernames)
+    if not names:
+        return [], [], [], []
+
+    user_rows = _read_csv_rows(users_csv) if users_csv and users_csv.is_file() else []
+    main_rows = [row for row in _read_csv_rows(main_answers_csv) if _row_matches_usernames(row, names)]
+    review_rows = [row for row in _read_csv_rows(reviews_csv) if _row_matches_usernames(row, names)]
+    user_rows = [row for row in user_rows if _row_matches_usernames(row, names)]
+
+    legacy_ids: set[str] = set()
+    for row in (*main_rows, *review_rows, *user_rows):
+        uid = str(row.get("user_id", "")).strip()
+        if uid:
+            legacy_ids.add(uid)
+    for row in user_rows:
+        ext = str(row.get("external_user_id", "")).strip()
+        if ext:
+            legacy_ids.add(ext)
+
+    event_rows = [
+        row
+        for row in _read_csv_rows(events_csv)
+        if str(row.get("user_id", "")).strip() in legacy_ids
+    ]
+    return user_rows, main_rows, review_rows, event_rows
+
+
+def import_legacy_from_csv_by_usernames(
+    logging_config: dict[str, Any],
+    usernames: list[str],
+    *,
+    users_csv: Path | None,
+    main_answers_csv: Path,
+    reviews_csv: Path,
+    events_csv: Path,
+    dry_run: bool = False,
+) -> LegacyImportStats:
+    """Импорт выбранных legacy-пользователей из CSV (scripts/migrate_legacy)."""
+    import tempfile
+
+    user_rows, main_rows, review_rows, event_rows = filter_legacy_csv_rows(
+        usernames,
+        users_csv=users_csv,
+        main_answers_csv=main_answers_csv,
+        reviews_csv=reviews_csv,
+        events_csv=events_csv,
+    )
+    if not user_rows and not main_rows and not review_rows:
+        return LegacyImportStats()
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        root = Path(tmp_dir)
+        users_path = root / "users.csv"
+        main_path = root / "user_answers.csv"
+        reviews_path = root / "user_reviews.csv"
+        events_path = root / "events.csv"
+
+        if user_rows:
+            _write_csv_rows(
+                users_path,
+                ["external_user_id", "user_name", "registration_time"],
+                user_rows,
+            )
+        _write_csv_rows(main_path, list(MAIN_ANSWER_COLUMNS), main_rows)
+        _write_csv_rows(reviews_path, list(REVIEW_COLUMNS), review_rows)
+        _write_csv_rows(events_path, list(EVENT_COLUMNS), event_rows)
+
+        return import_legacy_bot(
+            logging_config,
+            users_csv=users_path if user_rows else None,
+            main_answers_csv=main_path,
+            reviews_csv=reviews_path,
+            events_csv=events_path,
+            dry_run=dry_run,
+        )
 
 
 def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict[str, str]]) -> None:

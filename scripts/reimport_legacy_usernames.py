@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-Импорт отдельных legacy-пользователей из схемы tl по user_name.
+Импорт отдельных legacy-пользователей по user_name из CSV (scripts/migrate_legacy).
 
 Пример:
+  python3 scripts/reimport_legacy_usernames.py --dry-run --prod Rkhbvs kirsl
   python3 scripts/reimport_legacy_usernames.py --prod Rkhbvs kirsl
-  python3 scripts/reimport_legacy_usernames.py --dry-run --prod Rkhbvs
+
+Опционально — из схемы tl на сервере (если она ещё есть):
+  python3 scripts/reimport_legacy_usernames.py --from-db --prod Rkhbvs
 """
 
 from __future__ import annotations
@@ -21,7 +24,12 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from core.migration.legacy_import import import_legacy_from_tl_by_usernames
+from core.migration.legacy_import import (
+    import_legacy_from_csv_by_usernames,
+    import_legacy_from_tl_by_usernames,
+)
+
+LEGACY_DIR = ROOT / "scripts" / "migrate_legacy"
 
 
 def _resolve_logging_config(config_path: Path, target: str) -> dict[str, Any]:
@@ -38,9 +46,9 @@ def _resolve_logging_config(config_path: Path, target: str) -> dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Импорт legacy-пользователей из tl.* по user_name"
+        description="Импорт legacy-пользователей по user_name (из CSV по умолчанию)"
     )
-    parser.add_argument("usernames", nargs="+", help="user_name в legacy (например Rkhbvs kirsl)")
+    parser.add_argument("usernames", nargs="+", help="user_name (например Rkhbvs kirsl)")
     parser.add_argument("--config", type=Path, default=ROOT / "config.yaml")
     parser.add_argument(
         "--target",
@@ -48,20 +56,48 @@ def main() -> int:
         default="logging",
     )
     parser.add_argument("--prod", action="store_const", const="wvs_prod", dest="target")
+    parser.add_argument("--legacy-dir", type=Path, default=LEGACY_DIR)
+    parser.add_argument(
+        "--from-db",
+        action="store_true",
+        help="Читать из схемы tl в Postgres (по умолчанию — CSV)",
+    )
     parser.add_argument("--legacy-schema", default="tl")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     logging_config = _resolve_logging_config(args.config, args.target)
-    stats = import_legacy_from_tl_by_usernames(
-        logging_config,
-        args.usernames,
-        legacy_schema=args.legacy_schema,
-        dry_run=args.dry_run,
-    )
+
+    if args.from_db:
+        stats = import_legacy_from_tl_by_usernames(
+            logging_config,
+            args.usernames,
+            legacy_schema=args.legacy_schema,
+            dry_run=args.dry_run,
+        )
+        source = f"db:{args.legacy_schema}"
+    else:
+        users_csv = args.legacy_dir / "users.csv"
+        main_csv = args.legacy_dir / "user_answers.csv"
+        reviews_csv = args.legacy_dir / "user_reviews.csv"
+        events_csv = args.legacy_dir / "events.csv"
+        for path in (main_csv, reviews_csv, events_csv):
+            if not path.is_file():
+                print(f"Файл не найден: {path}", file=sys.stderr)
+                return 1
+        stats = import_legacy_from_csv_by_usernames(
+            logging_config,
+            args.usernames,
+            users_csv=users_csv if users_csv.is_file() else None,
+            main_answers_csv=main_csv,
+            reviews_csv=reviews_csv,
+            events_csv=events_csv,
+            dry_run=args.dry_run,
+        )
+        source = str(args.legacy_dir)
 
     mode = "DRY-RUN" if args.dry_run else "IMPORT"
-    print(f"[{mode}] target={args.target} host={logging_config['host']}")
+    print(f"[{mode}] target={args.target} host={logging_config['host']} source={source}")
     print(f"[{mode}] usernames={args.usernames}")
     print(f"[{mode}] users created={stats.users_created} skipped={stats.users_skipped}")
     print(f"[{mode}] main_answers={stats.main_answers} reviews={stats.reviews}")
@@ -70,7 +106,7 @@ def main() -> int:
         f"skipped={stats.events_skipped}"
     )
     if stats.users_created == 0 and stats.main_answers == 0:
-        print("Ничего не найдено в legacy-схеме — проверьте user_name и схему tl.")
+        print("Ничего не найдено — проверьте user_name и CSV в scripts/migrate_legacy/")
         return 1
     return 0
 

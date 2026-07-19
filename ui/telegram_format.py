@@ -1,5 +1,16 @@
 # coding: utf-8
-"""Форматирование текста для Telegram (HTML parse_mode)."""
+"""
+Форматирование текста для Telegram (HTML parse_mode).
+
+Цель:
+    Streamlit понимает **bold**; Telegram legacy Markdown — нет. Конвертируем в <b>.
+
+Вход:
+    Текст с **фрагментами**.
+
+Выход:
+    HTML-строка с экранированием &, <, >.
+"""
 
 from __future__ import annotations
 

@@ -1,5 +1,16 @@
 # coding: utf-8
-"""Streamlit-клиент WVS."""
+"""
+Streamlit-клиент WVS.
+
+Цель:
+    Веб-UI: анкеты, меню, Plotly-графики страны и гистограммы «своё место».
+
+Вход:
+    config.yaml; session state + cookies для persistent user_id.
+
+Выход:
+    Интерактивное приложение на порту из .streamlit/config.toml.
+"""
 
 from __future__ import annotations
 
