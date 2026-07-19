@@ -42,3 +42,5 @@ communication:
     # Числовой id группы (не invite-link). Узнать: getUpdates после сообщения в чате.
     chat_id: ""
     timezone: Europe/Moscow
+    # Локальное время отправки (HH:MM). Timer на VM дергает скрипт каждую минуту.
+    send_at: "11:04"

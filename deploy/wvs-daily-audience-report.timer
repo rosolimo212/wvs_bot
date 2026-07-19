@@ -1,9 +1,10 @@
 [Unit]
-Description=WVS daily audience report at 11:04 Europe/Moscow
+Description=WVS daily audience report scheduler (every minute, gate by config send_at)
 
 [Timer]
 Timezone=Europe/Moscow
-OnCalendar=*-*-* 11:04:00
+OnCalendar=*-*-* *:*:00
+AccuracySec=15s
 Persistent=true
 Unit=wvs-daily-audience-report.service
 

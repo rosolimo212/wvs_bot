@@ -1,5 +1,5 @@
 [Unit]
-Description=WVS daily audience report (oneshot)
+Description=WVS daily audience report (checks send_at from config each minute)
 After=network-online.target
 Wants=network-online.target
 

@@ -83,7 +83,8 @@ cd /root/python/wvs_bot && git pull && systemctl restart wvs-streamlit
 
 ## 7. Daily audience report (Telegram-VM)
 
-Ежедневный дайджест в служебный чат в **11:04 Europe/Moscow**.
+Ежедневный дайджест в служебный чат. Время задаётся в **config.yaml** (`send_at`),
+systemd timer каждую минуту запускает скрипт; отправка только в нужную минуту.
 
 1. В `config.yaml` на Telegram-VM:
 
@@ -91,16 +92,21 @@ cd /root/python/wvs_bot && git pull && systemctl restart wvs-streamlit
 communication:
   daily_audience_report:
     enabled: true
-    chat_id: "-100xxxxxxxxxx"   # числовой id группы
+    chat_id: "-100xxxxxxxxxx"
     timezone: Europe/Moscow
+    send_at: "11:04"
 ```
 
-2. Проверка без отправки:
+2. Проверка без отправки / принудительная отправка:
 
 ```bash
 cd /root/python/wvs_bot
 .venv/bin/python scripts/send_daily_audience_report.py --dry-run
+.venv/bin/python scripts/send_daily_audience_report.py --force
 ```
+
+Тест по расписанию: поставьте `send_at` на ближайшую минуту и подождите timer
+(перезапускать systemd не нужно — конфиг читается при каждом запуске).
 
 3. Установка timer:
 

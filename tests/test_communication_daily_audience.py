@@ -97,11 +97,13 @@ async def test_run_daily_report_dry_run_skips_send() -> None:
         return_value=report,
     ):
         with patch("core.communication.daily_audience.send_telegram_text") as send:
-            text = await run_daily_audience_report(
+            result = await run_daily_audience_report(
                 {"logging": {"schema": "wvs"}, "communication": {}},
                 dry_run=True,
             )
-    assert "телега: 1" in text
+    assert "телега: 1" in result.text
+    assert result.sent is False
+    assert result.skipped_reason == "dry_run"
     send.assert_not_called()
 
 
@@ -121,8 +123,57 @@ async def test_run_daily_report_requires_chat_id() -> None:
             await run_daily_audience_report(
                 {
                     "logging": {"schema": "wvs"},
-                    "communication": {"daily_audience_report": {"enabled": True, "chat_id": ""}},
+                    "communication": {
+                        "daily_audience_report": {
+                            "enabled": True,
+                            "chat_id": "",
+                            "send_at": "11:04",
+                            "timezone": "Europe/Moscow",
+                        }
+                    },
                     "telegram": {"token": "x"},
                 },
                 dry_run=False,
+                force=True,
             )
+
+
+@pytest.mark.asyncio
+async def test_run_daily_report_skips_outside_send_at(tmp_path) -> None:
+    with patch("core.communication.daily_audience.collect_audience_metrics") as collect:
+        with patch("core.communication.daily_audience.send_telegram_text") as send:
+            result = await run_daily_audience_report(
+                {
+                    "logging": {"schema": "wvs"},
+                    "communication": {
+                        "daily_audience_report": {
+                            "enabled": True,
+                            "chat_id": "-1001",
+                            "send_at": "11:04",
+                            "timezone": "Europe/Moscow",
+                        }
+                    },
+                    "telegram": {"token": "x"},
+                },
+                now=datetime(2026, 7, 19, 12, 0, tzinfo=MSK),
+                sent_marker_path=tmp_path / "sent",
+            )
+    assert result.sent is False
+    assert result.skipped_reason and result.skipped_reason.startswith("not_send_at")
+    collect.assert_not_called()
+    send.assert_not_called()
+
+
+def test_is_send_at_now() -> None:
+    from core.communication.schedule import is_send_at_now
+
+    assert is_send_at_now(
+        send_at="11:04",
+        timezone="Europe/Moscow",
+        now=datetime(2026, 7, 19, 11, 4, 30, tzinfo=MSK),
+    )
+    assert not is_send_at_now(
+        send_at="11:04",
+        timezone="Europe/Moscow",
+        now=datetime(2026, 7, 19, 11, 5, tzinfo=MSK),
+    )
