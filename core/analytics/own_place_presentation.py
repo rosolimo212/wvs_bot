@@ -294,7 +294,12 @@ def build_own_place_presentation(
     else:
         parts.append(message("find_own_place_secondary_hint", channel))
 
-    meta: dict[str, Any] = {}
+    meta: dict[str, Any] = {
+        "user_rv": float(user_rv),
+        "user_sv": float(user_sv),
+        "country_name": ctx.country_name,
+        "country_code": ctx.country_code,
+    }
     if charts:
         meta["show_own_place_charts"] = True
         meta["own_place_charts"] = charts

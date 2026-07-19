@@ -3,7 +3,8 @@
 Streamlit-клиент WVS.
 
 Цель:
-    Веб-UI: анкеты, меню, Plotly-графики страны и гистограммы «своё место».
+    Веб-UI: анкеты, меню, Plotly-графики страны и гистограммы «своё место»,
+    скачивание PNG-карточки результата (ui/share_card.py).
 
 Вход:
     config.yaml; session state + cookies для persistent user_id.
@@ -220,6 +221,29 @@ def _render_questionnaire_screen(
             st.rerun()
 
 
+def _render_share_download(
+    st: Any,
+    *,
+    kind: str,
+    meta: dict[str, Any],
+    label_key: str,
+) -> None:
+    from ui.share_card import build_share_png_from_meta
+
+    png = build_share_png_from_meta(kind=kind, meta=meta)
+    if not png:
+        return
+    st.caption(message("browser_share_caption", "streamlit"))
+    file_name = "wvs_country_result.png" if kind == "country" else "wvs_own_place_result.png"
+    st.download_button(
+        label=message(label_key, "streamlit"),
+        data=png,
+        file_name=file_name,
+        mime="image/png",
+        key=f"share_download_{kind}",
+    )
+
+
 def run_streamlit(config: dict[str, Any]) -> None:
     import streamlit as st
 
@@ -319,6 +343,18 @@ def run_streamlit(config: dict[str, Any]) -> None:
                     )
                     state["country_plot_logged"] = True
 
+    if (
+        screen == Screen.FIND_COUNTRY.value
+        and state.get("meta", {}).get("country_code")
+        and state.get("meta", {}).get("user_rv") is not None
+    ):
+        _render_share_download(
+            st,
+            kind="country",
+            meta=state.get("meta", {}),
+            label_key="browser_share_download_country",
+        )
+
     if screen != Screen.FIND_OWN_PLACE.value:
         state.pop("own_place_charts_logged", None)
 
@@ -340,6 +376,18 @@ def run_streamlit(config: dict[str, Any]) -> None:
             if fig is not None:
                 st.plotly_chart(fig, use_container_width=True)
         state["own_place_charts_logged"] = True
+
+    if (
+        screen == Screen.FIND_OWN_PLACE.value
+        and own_place_meta.get("user_rv") is not None
+        and own_place_meta.get("user_sv") is not None
+    ):
+        _render_share_download(
+            st,
+            kind="own_place",
+            meta=own_place_meta,
+            label_key="browser_share_download_own_place",
+        )
 
     if screen == Screen.START.value:
         name = st.text_input(message("browser_name_label", "streamlit"), key="name_input")

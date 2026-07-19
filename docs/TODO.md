@@ -35,3 +35,4 @@
 - Рассылки: `wvs.communications`, сегменты, dry-run, stub + `faq_deeplink`.
 - Фикс `find_nearest_country(..., answer_store, ...)`.
 - Telegram: registration после confirm; починка numeric `user_name`.
+- Streamlit: скачивание результата одной PNG-картинкой (`ui/share_card.py`).

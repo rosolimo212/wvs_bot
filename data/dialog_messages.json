@@ -605,6 +605,33 @@
       "browser": ""
     },
     {
+      "id": 81,
+      "name": "browser_share_download_country",
+      "when": "Кнопка скачать PNG результата «Найти страну».",
+      "default": "Скачать результат картинкой",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 82,
+      "name": "browser_share_download_own_place",
+      "when": "Кнопка скачать PNG результата «Понять своё место».",
+      "default": "Скачать результат картинкой",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 83,
+      "name": "browser_share_caption",
+      "when": "Подпись под кнопкой скачивания результата.",
+      "default": "Удобно отправить друзьям или сохранить. В картинке — ссылка на бота.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
       "id": 40,
       "name": "console_banner",
       "when": "Старт консольного клиента.",

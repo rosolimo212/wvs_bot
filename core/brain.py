@@ -371,6 +371,8 @@ def on_find_country(
             "user_rv": rv,
             "user_sv": sv,
             "country_code": country_code,
+            "country_rv": country_rv,
+            "country_sv": country_sv,
             "show_country_plot": True,
         },
     )
