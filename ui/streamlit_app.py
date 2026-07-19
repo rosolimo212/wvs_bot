@@ -227,13 +227,66 @@ def _render_share_download(
     kind: str,
     meta: dict[str, Any],
     label_key: str,
+    config: dict[str, Any],
 ) -> None:
-    from ui.share_card import build_share_png_from_meta
+    """
+    Двухшагово: сначала «Подготовить» (тяжёлая генерация один раз),
+    затем download_button из session_state — без пересборки на каждом rerun.
+    """
+    from ui.share_card import build_country_share_png, build_own_place_share_png
 
-    png = build_share_png_from_meta(kind=kind, meta=meta)
+    cache_key = f"share_png_{kind}"
+    meta_fp = (
+        f"{kind}:{meta.get('user_rv')}:{meta.get('user_sv')}:"
+        f"{meta.get('country_code')}:{meta.get('country_name')}:"
+        f"{meta.get('country_rv')}:{meta.get('country_sv')}"
+    )
+    if st.session_state.get(f"{cache_key}_fp") != meta_fp:
+        st.session_state.pop(cache_key, None)
+        st.session_state[f"{cache_key}_fp"] = meta_fp
+
+    st.caption(message("browser_share_caption", "streamlit"))
+
+    if st.button(message("browser_share_prepare", "streamlit"), key=f"share_prepare_{kind}"):
+        try:
+            if kind == "country":
+                logging_config = (
+                    config.get("logging")
+                    if config.get("app", {}).get("logging_enabled")
+                    else None
+                )
+                if not logging_config:
+                    st.warning(message("browser_share_need_logging", "streamlit"))
+                    return
+                reference_schema = str(
+                    config.get("analytics", {}).get("reference_schema")
+                    or config.get("logging", {}).get("schema", "wvs")
+                )
+                with st.spinner(message("browser_share_preparing", "streamlit")):
+                    st.session_state[cache_key] = build_country_share_png(
+                        user_rv=float(meta["user_rv"]),
+                        user_sv=float(meta["user_sv"]),
+                        country_code=str(meta["country_code"]),
+                        country_rv=meta.get("country_rv"),
+                        country_sv=meta.get("country_sv"),
+                        logging_config=logging_config,
+                        reference_schema=reference_schema,
+                    )
+            else:
+                with st.spinner(message("browser_share_preparing", "streamlit")):
+                    st.session_state[cache_key] = build_own_place_share_png(
+                        user_rv=float(meta["user_rv"]),
+                        user_sv=float(meta["user_sv"]),
+                        country_name=str(meta.get("country_name") or ""),
+                    )
+        except Exception as exc:
+            st.session_state.pop(cache_key, None)
+            st.error(f"Не удалось собрать картинку: {exc}")
+            return
+
+    png = st.session_state.get(cache_key)
     if not png:
         return
-    st.caption(message("browser_share_caption", "streamlit"))
     file_name = "wvs_country_result.png" if kind == "country" else "wvs_own_place_result.png"
     st.download_button(
         label=message(label_key, "streamlit"),
@@ -275,6 +328,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
     screen = state.get("screen", Screen.START.value)
     if screen != Screen.FIND_COUNTRY.value:
         state.pop("country_plot_logged", None)
+        state.pop("share_png_country", None)
 
     meta = state.get("meta", {})
     if (
@@ -353,10 +407,12 @@ def run_streamlit(config: dict[str, Any]) -> None:
             kind="country",
             meta=state.get("meta", {}),
             label_key="browser_share_download_country",
+            config=config,
         )
 
     if screen != Screen.FIND_OWN_PLACE.value:
         state.pop("own_place_charts_logged", None)
+        state.pop("share_png_own_place", None)
 
     own_place_meta = state.get("meta", {})
     if (
@@ -387,6 +443,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
             kind="own_place",
             meta=own_place_meta,
             label_key="browser_share_download_own_place",
+            config=config,
         )
 
     if screen == Screen.START.value:
