@@ -4,6 +4,12 @@
       "template_id": "stub_empty",
       "when": "Нулевая болванка: проверка доставки в stats-чат (сегмент test).",
       "default": "WVS communication stub.\n\nПривет, {user_name}!"
+    },
+    "faq_deeplink": {
+      "template_id": "faq_deeplink",
+      "when": "Анонс FAQ / «Узнать больше» со ссылкой t.me/bot?start=faq.",
+      "default": "Здравствуйте, {user_name}!\n\nВ боте появились часто задаваемые вопросы — раздел «Узнать больше».\n\nОткрыть бота и обновить меню:\nhttps://t.me/values_counter_bot?start=faq",
+      "telegram": "Здравствуйте, {user_name}!\n\nВ боте появились часто задаваемые вопросы — раздел **Узнать больше**.\n\nЧтобы увидеть обновление, откройте бота по ссылке (запустится /start):\nhttps://t.me/values_counter_bot?start=faq"
     }
   }
 }
