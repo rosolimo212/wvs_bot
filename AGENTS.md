@@ -29,6 +29,11 @@
 Бот на Telegram-VM пишет в Postgres **по сети** (`logging.host` = IP основной).  
 Миграции SQL (`sql/*.sql`) накатывать **на Postgres основной VM**, не на сокет Telegram-VM.
 
+Деплой:
+- основная VM → `scripts/deploy_prod.sh` (Streamlit + лендинг);
+- Telegram-VM → `scripts/deploy_telegram.sh` (unit `wvs-telegram` + daily-report timer).
+При редких релизах достаточно ручного pull на затронутой машине.
+
 ## Индексы RV/SV
 
 - Считаются в Python (`core/analytics/indices.py`, `wvs_index_sums.py`).

@@ -6,14 +6,13 @@
 
 | # | Задача | Зачем |
 |---|--------|--------|
-| 1 | Закоммитить / задеплоить актуальный `dev`↔`main` и код communications на обе VM | Иначе прод расходится с локальным |
-| 2 | На Telegram-VM: timer daily report + `send_at`/`chat_id` в config; проверка `--force` / минута `send_at` | Стабильный дайджест |
-| 3 | systemd unit для Telegram (`wvs-telegram.service`) | Сейчас часто nohup; рестарты хрупкие |
-| 4 | Маршрутизация `/start faq` (и др. payload) → экран FAQ / нужный экран | Deep link из шаблона `faq_deeplink` станет полезным |
-| 5 | Inline-кнопка в рассылке («Открыть FAQ») без обязательного `/start` | Надёжнее deep link для уже пишущих боту |
-| 6 | Убедиться, что `scripts/deploy_prod.sh` копирует лендинг + рестартит нужные unit’ы | Меньше ручных шагов |
-| 7 | Документировать на Telegram-VM: миграции SQL только на основной Postgres | Частая ошибка с `psql` на сокет |
-
+| 1 | ~~Синхрон/деплой на обе VM при каждом релизе~~ | при редких релизах достаточно ручного pull на нужной VM |
+| 2 | На Telegram-VM: timer daily report + `send_at`/`chat_id` в config | Стабильный дайджест |
+| 3 | ~~systemd unit для Telegram~~ | ✅ `deploy/wvs-telegram.service` + `scripts/deploy_telegram.sh` |
+| 4 | ~~Маршрутизация `/start faq` → FAQ~~ | отложено |
+| 5 | ~~Inline-кнопка в рассылке~~ | отложено |
+| 6 | ~~Актуальность `deploy_prod.sh`~~ | ✅ main VM only; пара — `deploy_telegram.sh` |
+| 7 | SQL-миграции только на Postgres основной VM | правило в AGENTS / DEPLOY |
 ## B) Когда вырастет нагрузка / аудитория
 
 | # | Задача | Зачем |

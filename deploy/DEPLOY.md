@@ -77,9 +77,18 @@ certbot --nginx -d streamlit.worldvaluessurveybot.info
 
 ## 6. Обновление
 
+**Основная VM** (Streamlit + лендинг):
+
 ```bash
 cd /root/python/wvs_bot
 ./scripts/deploy_prod.sh
+```
+
+**Telegram-VM** (бот + daily-report units):
+
+```bash
+cd /root/python/wvs_bot
+./scripts/deploy_telegram.sh
 ```
 
 Или вручную:
@@ -148,20 +157,33 @@ journalctl -u wvs-streamlit -n 30 --no-pager
 
 Проверка снаружи: https://streamlit.worldvaluessurveybot.info
 
-### Telegram на проде
+### Telegram на проде (Telegram-VM)
 
-Отдельного unit в репозитории нет. Если бот запущен вручную:
+Unit в репозитории: `deploy/wvs-telegram.service`.  
+В `config.yaml` на этой VM: `app.interface: telegram`, `logging.host` → Postgres основной машины.
+
+**Первая установка (под root):**
 
 ```bash
-ps aux | grep -E 'telegram_bot|main.py' | grep -v grep
-pkill -f 'main.py' || pkill -f 'telegram_bot' || true
-
 cd /root/python/wvs_bot
-source .venv/bin/activate
-nohup python main.py >> /var/log/wvs-telegram.log 2>&1 &
+# остановить старый nohup/polling, иначе конфликт getUpdates:
+pkill -f '/root/python/wvs_bot/main.py' 2>/dev/null || true
+pkill -f 'python main.py' 2>/dev/null || true
+
+cp deploy/wvs-telegram.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now wvs-telegram
+systemctl status wvs-telegram
+journalctl -u wvs-telegram -n 30 --no-pager
 ```
 
-(или оформите свой `wvs-telegram.service` по аналогии с `deploy/wvs-streamlit.service`, с `ExecStart=... python main.py` и `interface: telegram` в `config.yaml`.)
+**Обычное обновление:**
+
+```bash
+./scripts/deploy_telegram.sh
+```
+
+Логи: `journalctl -u wvs-telegram -f`
 
 ## 8. Daily audience report (Telegram-VM)
 

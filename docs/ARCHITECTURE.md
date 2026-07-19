@@ -155,8 +155,9 @@ UNIQUE `(user_id, template_id)`. Имя мн. числа — не `wvs.communica
 | `import_legacy_bot.py` / `reimport_legacy_usernames.py` | Legacy import |
 | `send_daily_audience_report.py` | Daily дайджест (--dry-run / --force) |
 | `send_communication.py` | Ручная рассылка (--template, --segment) |
+| `deploy_prod.sh` | Основная VM: pull, pip, лендинг, restart streamlit |
+| `deploy_telegram.sh` | Telegram-VM: pull, pip, units бота + daily timer |
 | `check_telegram_api.py` | Диагностика Telegram API / proxy |
-| `deploy_prod.sh` | Pull / restart на основной VM |
 | `country_plot_timing_check.py` | Замер латентности графика |
 | `generate_country_profiles.py` | Генерация `country_profiles.json` |
 | `apply_country_data_alter.py` | Миграция колонок country_data |
@@ -188,10 +189,11 @@ UNIQUE `(user_id, template_id)`. Имя мн. числа — не `wvs.communica
 | Postgres | Основная VM, `communication.wvs` |
 | Streamlit | systemd `wvs-streamlit`, порт 8502 (основная VM) |
 | Лендинг | nginx → `/var/www/worldvaluessurveybot/index.html` |
-| Telegram | отдельная VM, `python main.py` / systemd (unit желателен) |
+| Telegram | отдельная VM, `systemctl restart wvs-telegram` / `./scripts/deploy_telegram.sh` |
 | Daily audience report | Telegram-VM, timer `wvs-daily-audience-report` |
 | Рассылки | CLI на Telegram-VM → Bot API + запись в `wvs.communications` |
 
+Обновление: основная — `scripts/deploy_prod.sh`; Telegram — `scripts/deploy_telegram.sh`.
 Подробнее: [`deploy/DEPLOY.md`](../deploy/DEPLOY.md). Для агентов: [`../AGENTS.md`](../AGENTS.md).
 
 ## Тестирование

@@ -199,7 +199,8 @@ communication:
 - **Postgres:** основная VM, БД `communication`, схема `wvs`. Миграции `sql/*.sql` — сюда.
 - **Streamlit:** https://streamlit.worldvaluessurveybot.info — `systemctl restart wvs-streamlit`
 - **Лендинг:** https://worldvaluessurveybot.info — после pull: `cp deploy/www/index.html /var/www/worldvaluessurveybot/` (или `scripts/deploy_prod.sh`)
-- **Telegram:** отдельная VM, `app.interface: telegram`; исходящие рассылки и daily report — тоже отсюда
+- **Telegram:** отдельная VM — `deploy/wvs-telegram.service`, обновление: `./scripts/deploy_telegram.sh`
+- **Основная VM:** `./scripts/deploy_prod.sh` (Streamlit + лендинг)
 - **Daily report:** systemd timer `wvs-daily-audience-report` (см. `deploy/DEPLOY.md` §8)
 - **Рассылки:** `scripts/send_communication.py` (шаблоны в `data/communication_messages.json`)
 

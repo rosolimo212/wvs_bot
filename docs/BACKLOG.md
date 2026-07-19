@@ -28,8 +28,8 @@
 
 | Пункт | Статус | Комментарий |
 |-------|--------|-------------|
-| systemd unit для Telegram | ❌ | Часто nohup; streamlit + daily-report timer есть |
-| Deploy script | ⚠️ | Есть `scripts/deploy_prod.sh` — держать в синхроне с DEPLOY.md |
+| systemd unit для Telegram | ✅ | `deploy/wvs-telegram.service`, `scripts/deploy_telegram.sh` |
+| Deploy script | ✅ | `deploy_prod.sh` (основная VM), `deploy_telegram.sh` (Telegram-VM) |
 | CI/CD (GitHub Actions) | ❌ | Деплой вручную на VM |
 | Мониторинг DAU / ошибок рассылок | ❌ | См. TODO §B |
 

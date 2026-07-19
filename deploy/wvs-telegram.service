@@ -1,0 +1,17 @@
+[Unit]
+Description=WVS Bot Telegram (aiogram long polling)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/python/wvs_bot
+Environment=PYTHONUNBUFFERED=1
+# В config.yaml на этой VM: app.interface: telegram
+ExecStart=/root/python/wvs_bot/.venv/bin/python /root/python/wvs_bot/main.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
