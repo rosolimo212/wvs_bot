@@ -6,10 +6,14 @@
     Euclidean distance в (RV, SV) между пользователем и country_data.
 
 Вход:
-    answer_store, user_id, logging_config.
+    answer_store (MainAnswerStore), user_id, logging_config,
+    опционально reference_schema.
 
 Выход:
     NearestCountry или None, если индексы пользователя не посчитались.
+
+Риск:
+    Старые вызовы без answer_store ломаются TypeError — см. AppService._handle_option_3.
 """
 
 from __future__ import annotations

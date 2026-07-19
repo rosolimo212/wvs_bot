@@ -19,6 +19,7 @@
 │  core/brain.py │           │  core/questionnaire/              │
 │  чистая логика │           │  core/logging/                    │
 │  экранов       │           │  core/analytics/                  │
+│                │           │  core/communication/ (outbound)   │
 └────────────────┘           └────────┬──────────────────────────┘
                                       │
                             ┌─────────▼─────────┐
@@ -72,9 +73,10 @@
 
 | Модуль | Назначение | Вход | Выход |
 |--------|------------|------|-------|
-| `indices.py` | RV/SV по 13 ответам | answer_store, user_id | (rv, sv) или None |
+| `indices.py` | RV/SV по ответам; «не знаю» вне суммы; warn ≥5 | answer_store / list | (rv, sv) или None |
+| `wvs_index_sums.py` | Общая методология сумм для user / gen_sample / country | коды WVS | суммы / means |
 | `child_qualities.py` | Парсинг Q11/Q17 (свободный текст) | answer_text | код качества |
-| `country.py` | Ближайшая страна | user_id, logging_config | `NearestCountry` |
+| `country.py` | Ближайшая страна | **answer_store**, user_id, logging_config | `NearestCountry` |
 | `country_lookup.py` | Текст страны → ISO код | текст, catalog | code |
 | `position.py` | Место в выборке WVS + сравнение с ботом | RV/SV, profile, SQL | `OwnPlaceResult` |
 | `own_place_presentation.py` | Текст и meta графиков option 4 | OwnPlaceResult | (text, meta) |
@@ -105,7 +107,24 @@
 
 | Модуль | Назначение |
 |--------|------------|
-| `legacy_import.py` | Импорт CSV из старого бота |
+| `legacy_import.py` | Импорт CSV/legacy; `_pick_user_name` не даёт numeric id затереть ник |
+
+### `core/communication/`
+
+Исходящие сообщения (не путать с именем БД `communication`).
+
+| Модуль | Назначение |
+|--------|------------|
+| `daily_audience.py` | Дайджест метрик → Telegram stats-чат |
+| `metrics.py` / `formatters.py` / `schedule.py` | SQL метрик, текст, gate по `send_at` |
+| `campaigns.py` | Рассылки по сегментам + шаблонам |
+| `segments.py` | `test` / `all_users` / `primary_complete` / `both_complete` |
+| `messages.py` | `data/communication_messages.json`, `{user_name}` |
+| `store.py` | Журнал `wvs.communications` |
+| `telegram_delivery.py` | sendMessage (+ HTML parse_mode) |
+
+Таблица **`wvs.communications`**: `communication_id`, `user_id`, `template_id`, `sending_time`, `status`.  
+UNIQUE `(user_id, template_id)`. Имя мн. числа — не `wvs.communication`.
 
 ## Модули `ui/`
 
@@ -132,8 +151,12 @@
 |--------|------------|
 | `setup_reference_tables.py` | CSV → `gen_sample`, `country_data` |
 | `load_reference_data.py` | Низкоуровневая загрузка CSV |
-| `import_legacy_bot.py` | CLI миграции legacy |
+| `recompute_reference_indices.py` | Пересчёт country RV/SV |
+| `import_legacy_bot.py` / `reimport_legacy_usernames.py` | Legacy import |
+| `send_daily_audience_report.py` | Daily дайджест (--dry-run / --force) |
+| `send_communication.py` | Ручная рассылка (--template, --segment) |
 | `check_telegram_api.py` | Диагностика Telegram API / proxy |
+| `deploy_prod.sh` | Pull / restart на основной VM |
 | `country_plot_timing_check.py` | Замер латентности графика |
 | `generate_country_profiles.py` | Генерация `country_profiles.json` |
 | `apply_country_data_alter.py` | Миграция колонок country_data |
@@ -143,12 +166,14 @@
 | Файл | Содержимое |
 |------|------------|
 | `questions.json` | main + secondary вопросы |
-| `data/dialog_messages.json` | все user-facing строки |
+| `data/dialog_messages.json` | все user-facing строки сценария |
 | `data/learn_more_faq.json` | FAQ |
 | `data/country_profiles.json` | карточки стран |
+| `data/communication_messages.json` | шаблоны исходящих рассылок |
 | `gen_sample.csv` | выборка WVS (референс) |
 | `country_data.csv` | RV/SV по странам |
-| `config.yaml` | секреты, interface, logging |
+| `config.yaml` | секреты, interface, logging, communication |
+| `sql/006_communications.sql` | DDL журнала рассылок |
 
 ## События (`events.event_name`)
 
@@ -160,12 +185,14 @@
 
 | Компонент | Где крутится |
 |-----------|--------------|
-| Streamlit | systemd `wvs-streamlit`, порт 8502 |
+| Postgres | Основная VM, `communication.wvs` |
+| Streamlit | systemd `wvs-streamlit`, порт 8502 (основная VM) |
 | Лендинг | nginx → `/var/www/worldvaluessurveybot/index.html` |
-| Telegram | отдельный процесс `python main.py` (interface: telegram) |
-| Postgres | `communication.wvs` на prod/stage серверах |
+| Telegram | отдельная VM, `python main.py` / systemd (unit желателен) |
+| Daily audience report | Telegram-VM, timer `wvs-daily-audience-report` |
+| Рассылки | CLI на Telegram-VM → Bot API + запись в `wvs.communications` |
 
-Подробнее: [`deploy/DEPLOY.md`](../deploy/DEPLOY.md).
+Подробнее: [`deploy/DEPLOY.md`](../deploy/DEPLOY.md). Для агентов: [`../AGENTS.md`](../AGENTS.md).
 
 ## Тестирование
 

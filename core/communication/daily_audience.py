@@ -1,5 +1,11 @@
 # coding: utf-8
-"""Ежедневный отчёт активности аудитории."""
+"""
+Ежедневный отчёт активности аудитории.
+
+Без --force/--dry-run отправка только в минуту send_at (timezone из config)
+и не чаще одного раза в календарные сутки (маркер .cache/).
+Запуск: scripts/send_daily_audience_report.py; на проде — systemd timer каждую минуту.
+"""
 
 from __future__ import annotations
 

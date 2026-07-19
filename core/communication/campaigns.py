@@ -1,5 +1,19 @@
 # coding: utf-8
-"""Оркестрация исходящих коммуникаций (dry-run / send)."""
+"""
+Оркестрация исходящих коммуникаций (dry-run / send).
+
+Цель:
+    Сегмент + template_id → список получателей → Telegram (только channel=telegram).
+
+Идемпотентность:
+    UNIQUE (user_id, template_id) в wvs.communications.
+    На каждую попытку send — INSERT со status sent|failed:…
+    already_attempted / rate_limited — skip без INSERT.
+
+Риски:
+    Сегмент test пишет user_id=system:stats_chat (не строка из users).
+    Deep link в тексте не открывает FAQ сам по себе, пока handle_start не читает payload.
+"""
 
 from __future__ import annotations
 

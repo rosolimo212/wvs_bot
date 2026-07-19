@@ -1,5 +1,11 @@
 # coding: utf-8
-"""Сегменты получателей исходящих коммуникаций."""
+"""
+Сегменты получателей исходящих коммуникаций.
+
+test — один получатель: chat_id из communication.daily_audience_report.
+Остальные — только registration_channel = telegram.
+Заполненность анкет: qv_number=13 (user_answers), qv_number=14 (user_reviews).
+"""
 
 from __future__ import annotations
 

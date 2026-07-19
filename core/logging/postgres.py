@@ -1,5 +1,11 @@
 # coding: utf-8
-"""Логирование в postgres (схема wvs)."""
+"""
+Логирование в postgres (схема wvs).
+
+Таблицы: users, events.
+timestamp событий пишется через NOW() в SQL (серверное время БД).
+registration: вызывается из AppService после подтверждения/ввода имени.
+"""
 
 from __future__ import annotations
 

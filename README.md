@@ -3,7 +3,7 @@
 **Interactive survey bot for the [World Values Survey](https://www.worldvaluessurvey.org/) (WVS) framework.**  
 Participants answer a short questionnaire and get immediate feedback: value indices, nearest country, and their place relative to a large reference sample.
 
-**Architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · **Backlog:** [`docs/BACKLOG.md`](docs/BACKLOG.md) · **Deploy:** [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
+**Architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · **Agents:** [`AGENTS.md`](AGENTS.md) · **TODO:** [`docs/TODO.md`](docs/TODO.md) · **Backlog:** [`docs/BACKLOG.md`](docs/BACKLOG.md) · **Deploy:** [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
 
 ---
 
@@ -91,8 +91,9 @@ flowchart TB
 - **brain** builds `AppResponse` (text, buttons, screen, meta) without database or network.
 - **AppService** orchestrates questionnaires, events, analytics.
 - **Texts** live in `data/dialog_messages.json`; **questions** in `questions.json`.
+- **Outbound comms** (`core/communication/`): daily audience digest + manual Telegram campaigns.
 
-Full module catalog: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Full module catalog: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Agent-oriented notes: [`AGENTS.md`](AGENTS.md).
 
 ---
 
@@ -131,6 +132,7 @@ streamlit run ui/streamlit_app.py
 2. **Главное меню** — FAQ + две анкеты + две аналитические функции (см. таблицу выше).
 3. **Графики** — карта стран и гистограммы «своё место» в Streamlit (Plotly) и Telegram (PNG).
 4. **Логирование** — `users`, `events`, ответы; можно отключить (`logging_enabled: false`).
+5. **Коммуникации** — daily-дайджест в служебный чат; ручные рассылки по сегментам (`scripts/send_communication.py`).
 
 ---
 
@@ -138,12 +140,14 @@ streamlit run ui/streamlit_app.py
 
 | Путь | Назначение |
 |------|------------|
-| `core/` | Бизнес-логика: app, brain, analytics, questionnaire, logging |
+| `core/` | Бизнес-логика: app, brain, analytics, questionnaire, logging, **communication** |
 | `ui/` | Streamlit, Telegram, console |
-| `data/` | Тексты, FAQ, профили стран |
-| `scripts/` | Загрузка CSV, миграция legacy, утилиты |
-| `deploy/` | nginx, systemd, лендинг |
-| `docs/` | Архитектура, backlog |
+| `data/` | Тексты диалогов, FAQ, профили стран, **шаблоны рассылок** |
+| `scripts/` | Reference data, legacy import, daily report, send_communication |
+| `sql/` | DDL схемы wvs (в т.ч. `communications`) |
+| `deploy/` | nginx, systemd (streamlit + daily report timer), лендинг |
+| `docs/` | Архитектура, backlog, TODO |
+| `AGENTS.md` | Выжимка для AI-агентов |
 | `tests/` | pytest |
 | `old/` | MVP монолита (архив) |
 
@@ -157,12 +161,18 @@ app:
   interface: streamlit   # streamlit | telegram | console
   logging_enabled: true
 logging:
-  host: ...
+  host: ...              # на Telegram-VM — IP основной машины с Postgres
   database: communication
   schema: wvs
 telegram:
   token: ...
   proxy_url: ...         # если api.telegram.org недоступен с VPS
+communication:
+  daily_audience_report:
+    enabled: true
+    chat_id: "-100..."   # служебный чат дайджеста / сегмент test
+    timezone: Europe/Moscow
+    send_at: "11:04"
 ```
 
 ---
@@ -186,9 +196,14 @@ telegram:
 
 ## Продакшен
 
+- **Postgres:** основная VM, БД `communication`, схема `wvs`. Миграции `sql/*.sql` — сюда.
 - **Streamlit:** https://streamlit.worldvaluessurveybot.info — `systemctl restart wvs-streamlit`
-- **Лендинг:** https://worldvaluessurveybot.info — после `git pull` нужен `cp deploy/www/index.html /var/www/worldvaluessurveybot/`
-- **Telegram:** отдельный процесс; unit пока не в репо (см. [`docs/BACKLOG.md`](docs/BACKLOG.md))
+- **Лендинг:** https://worldvaluessurveybot.info — после pull: `cp deploy/www/index.html /var/www/worldvaluessurveybot/` (или `scripts/deploy_prod.sh`)
+- **Telegram:** отдельная VM, `app.interface: telegram`; исходящие рассылки и daily report — тоже отсюда
+- **Daily report:** systemd timer `wvs-daily-audience-report` (см. `deploy/DEPLOY.md` §8)
+- **Рассылки:** `scripts/send_communication.py` (шаблоны в `data/communication_messages.json`)
+
+Агент-заметки и грабли: [`AGENTS.md`](AGENTS.md). Ближайшие задачи: [`docs/TODO.md`](docs/TODO.md).
 
 ---
 
@@ -201,4 +216,5 @@ telegram:
 ## Требования и backlog
 
 Исходные принципы и цели — [`task.md`](task.md).  
-Что из task.md ещё не реализовано — [`docs/BACKLOG.md`](docs/BACKLOG.md).
+Что из task.md ещё не реализовано — [`docs/BACKLOG.md`](docs/BACKLOG.md).  
+Практический TODO (сейчас / при нагрузке) — [`docs/TODO.md`](docs/TODO.md).

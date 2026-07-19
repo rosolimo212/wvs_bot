@@ -1,5 +1,11 @@
 # coding: utf-8
-"""Журнал wvs.communications: id, идемпотентность, rate limit."""
+"""
+Журнал wvs.communications: id, идемпотентность, rate limit.
+
+communication_id выделяется nextval на этапе подготовки попытки (до send).
+Rate limit: не чаще одной записи в час на user_id (любой template) —
+при срабатывании попытка не делается и строка не пишется.
+"""
 
 from __future__ import annotations
 

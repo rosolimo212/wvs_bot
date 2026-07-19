@@ -1,6 +1,16 @@
 # coding: utf-8
 """
 AppService — оркестратор ядра WVS.
+
+Цель:
+    Связать UI (streamlit / telegram / console) с анкетами, логами и аналитикой.
+
+Не делает:
+    Отрисовку UI и исходящие массовые рассылки (см. core/communication/).
+
+Риски:
+    find_nearest_country требует answer_store первым аргументом.
+    Telegram: registration логируется после подтверждения имени, не на /start.
 """
 
 from __future__ import annotations

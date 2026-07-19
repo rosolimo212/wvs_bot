@@ -155,10 +155,13 @@ event_name для логирования:
 # Статус реализации (актуально на 2026)
 
 Полная сводка «заявлено vs сделано» — в [`docs/BACKLOG.md`](docs/BACKLOG.md).  
-Архитектура и каталог модулей — в [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+Архитектура и каталог модулей — в [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).  
+Для AI-агентов — [`AGENTS.md`](AGENTS.md); ближайшие задачи — [`docs/TODO.md`](docs/TODO.md).
 
-**Сделано:** модульный код, три интерфейса (по одному процессу), postgres-логирование с отключением, анкеты с паузой, RV/SV, найти страну, понять своё место (WVS + бот), FAQ, Telegram-графики, миграция legacy, лендинг.
+**Сделано:** модульный код, три интерфейса (по одному процессу), postgres-логирование с отключением, анкеты с паузой, RV/SV (без «не знаю» в сумме), найти страну, понять своё место (WVS + бот), FAQ, Telegram-графики, миграция legacy, лендинг, daily-дайджест аудитории, ручные Telegram-рассылки (`wvs.communications`).
 
-**Не сделано / частично:** одновременный запуск всех интерфейсов, SQLite/ClickHouse, ввод фото/гео, is_paid/is_trial, отдельные prod-тесты латентности Telegram/Streamlit, systemd для Telegram, автодеплой лендинга.
+**Не сделано / частично:** одновременный запуск всех интерфейсов, SQLite/ClickHouse, ввод фото/гео, is_paid/is_trial, отдельные prod-тесты латентности Telegram/Streamlit, systemd для Telegram, маршрутизация deep link `?start=faq`, inline-кнопки в рассылках, CI.
 
 **Меню:** в task указано 4 пункта; в продукте добавлен 5-й — «Узнать больше» (FAQ).
+
+**Прод:** Postgres + Streamlit на основной VM; Telegram-бот и исходящие коммуникации — на отдельной Telegram-VM.

@@ -1,5 +1,11 @@
 # coding: utf-8
-"""Загрузка шаблонов исходящих коммуникаций."""
+"""
+Загрузка шаблонов исходящих коммуникаций из data/communication_messages.json.
+
+Плейсхолдер: {user_name}.
+Опциональные ключи telegram / browser / console поверх default
+(browser ↔ registration_channel streamlit).
+"""
 
 from __future__ import annotations
 

@@ -1,6 +1,8 @@
 -- Журнал исходящих коммуникаций (рассылки в Telegram).
+-- Имя таблицы: wvs.communications (множественное число).
+-- Не путать с именем базы данных communication.
 --
--- Ручная установка:
+-- Ручная установка (на хосте Postgres / основной VM):
 --   psql -h localhost -U roman -d communication -f sql/006_communications.sql
 
 CREATE SEQUENCE IF NOT EXISTS wvs.communications_communication_id_seq;

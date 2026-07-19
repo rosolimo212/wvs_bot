@@ -1,5 +1,12 @@
 # coding: utf-8
-"""Исходящая коммуникация: дайджесты и рассылки."""
+"""
+Исходящая коммуникация: дайджесты аудитории и ручные Telegram-рассылки.
+
+Не путать с именем БД Postgres ``communication``.
+Журнал попыток: таблица ``wvs.communications`` (мн. число).
+Шаблоны: ``data/communication_messages.json``.
+CLI: ``scripts/send_daily_audience_report.py``, ``scripts/send_communication.py``.
+"""
 
 from core.communication.campaigns import (
     CommunicationRunResult,
