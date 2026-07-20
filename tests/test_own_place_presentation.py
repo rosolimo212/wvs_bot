@@ -71,6 +71,7 @@ def test_own_place_presentation_compact_format() -> None:
     ) in text
     assert meta.get("show_own_place_charts") is True
     assert len(meta["own_place_charts"]) == 2
+    assert meta.get("share_body_lines")
 
 
 def test_own_place_presentation_includes_bot_bullet() -> None:

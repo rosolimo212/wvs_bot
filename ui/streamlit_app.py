@@ -226,75 +226,100 @@ def _render_share_download(
     *,
     kind: str,
     meta: dict[str, Any],
-    label_key: str,
     config: dict[str, Any],
+    service: Any,
+    identity: Any,
 ) -> None:
-    """
-    Двухшагово: сначала «Подготовить» (тяжёлая генерация один раз),
-    затем download_button из session_state — без пересборки на каждом rerun.
-    """
+    """Одна кнопка — сразу скачивание PNG для соцсетей."""
+    import json
+
     from ui.share_card import build_country_share_png, build_own_place_share_png
 
-    cache_key = f"share_png_{kind}"
-    meta_fp = (
-        f"{kind}:{meta.get('user_rv')}:{meta.get('user_sv')}:"
-        f"{meta.get('country_code')}:{meta.get('country_name')}:"
-        f"{meta.get('country_rv')}:{meta.get('country_sv')}"
-    )
-    if st.session_state.get(f"{cache_key}_fp") != meta_fp:
-        st.session_state.pop(cache_key, None)
-        st.session_state[f"{cache_key}_fp"] = meta_fp
+    label_key = "browser_share_download"
+    image_type = "country" if kind == "country" else "place"
+    file_name = "wvs_country_share.png" if kind == "country" else "wvs_place_share.png"
 
-    st.caption(message("browser_share_caption", "streamlit"))
+    @st.cache_data(show_spinner=False)
+    def _cached_country_png(
+        user_rv: float,
+        user_sv: float,
+        country_code: str,
+        country_rv: float | None,
+        country_sv: float | None,
+        reference_schema: str,
+        logging_fingerprint: str,
+    ) -> bytes:
+        logging_config = json.loads(logging_fingerprint)
+        return build_country_share_png(
+            user_rv=user_rv,
+            user_sv=user_sv,
+            country_code=country_code,
+            country_rv=country_rv,
+            country_sv=country_sv,
+            logging_config=logging_config,
+            reference_schema=reference_schema,
+            channel="streamlit",
+        )
 
-    if st.button(message("browser_share_prepare", "streamlit"), key=f"share_prepare_{kind}"):
-        try:
-            if kind == "country":
-                logging_config = (
-                    config.get("logging")
-                    if config.get("app", {}).get("logging_enabled")
-                    else None
-                )
-                if not logging_config:
-                    st.warning(message("browser_share_need_logging", "streamlit"))
-                    return
-                reference_schema = str(
-                    config.get("analytics", {}).get("reference_schema")
-                    or config.get("logging", {}).get("schema", "wvs")
-                )
-                with st.spinner(message("browser_share_preparing", "streamlit")):
-                    st.session_state[cache_key] = build_country_share_png(
-                        user_rv=float(meta["user_rv"]),
-                        user_sv=float(meta["user_sv"]),
-                        country_code=str(meta["country_code"]),
-                        country_rv=meta.get("country_rv"),
-                        country_sv=meta.get("country_sv"),
-                        logging_config=logging_config,
-                        reference_schema=reference_schema,
-                    )
-            else:
-                with st.spinner(message("browser_share_preparing", "streamlit")):
-                    st.session_state[cache_key] = build_own_place_share_png(
-                        user_rv=float(meta["user_rv"]),
-                        user_sv=float(meta["user_sv"]),
-                        country_name=str(meta.get("country_name") or ""),
-                    )
-        except Exception as exc:
-            st.session_state.pop(cache_key, None)
-            st.error(f"Не удалось собрать картинку: {exc}")
-            return
+    @st.cache_data(show_spinner=False)
+    def _cached_place_png(
+        user_rv: float,
+        user_sv: float,
+        charts_json: str,
+        body_json: str,
+    ) -> bytes:
+        return build_own_place_share_png(
+            user_rv=user_rv,
+            user_sv=user_sv,
+            own_place_charts=json.loads(charts_json),
+            share_body_lines=json.loads(body_json),
+            channel="streamlit",
+        )
 
-    png = st.session_state.get(cache_key)
-    if not png:
+    try:
+        if kind == "country":
+            if not config.get("app", {}).get("logging_enabled"):
+                st.warning(message("browser_share_need_logging", "streamlit"))
+                return
+            logging_cfg = config.get("logging")
+            if not logging_cfg:
+                st.warning(message("browser_share_need_logging", "streamlit"))
+                return
+            reference_schema = str(
+                config.get("analytics", {}).get("reference_schema")
+                or logging_cfg.get("schema", "wvs")
+            )
+            png = _cached_country_png(
+                float(meta["user_rv"]),
+                float(meta["user_sv"]),
+                str(meta["country_code"]),
+                meta.get("country_rv"),
+                meta.get("country_sv"),
+                reference_schema,
+                json.dumps(logging_cfg, sort_keys=True),
+            )
+        else:
+            charts = meta.get("own_place_charts") or []
+            if not charts:
+                return
+            png = _cached_place_png(
+                float(meta["user_rv"]),
+                float(meta["user_sv"]),
+                json.dumps(charts, sort_keys=True),
+                json.dumps(meta.get("share_body_lines") or [], ensure_ascii=False),
+            )
+    except Exception as exc:
+        st.error(message("browser_share_build_error", "streamlit", error=str(exc)))
         return
-    file_name = "wvs_country_result.png" if kind == "country" else "wvs_own_place_result.png"
-    st.download_button(
+
+    if st.download_button(
         label=message(label_key, "streamlit"),
         data=png,
         file_name=file_name,
         mime="image/png",
         key=f"share_download_{kind}",
-    )
+    ):
+        service.log_load_image(identity, "streamlit", image_type=image_type)
 
 
 def run_streamlit(config: dict[str, Any]) -> None:
@@ -328,7 +353,6 @@ def run_streamlit(config: dict[str, Any]) -> None:
     screen = state.get("screen", Screen.START.value)
     if screen != Screen.FIND_COUNTRY.value:
         state.pop("country_plot_logged", None)
-        state.pop("share_png_country", None)
 
     meta = state.get("meta", {})
     if (
@@ -406,13 +430,13 @@ def run_streamlit(config: dict[str, Any]) -> None:
             st,
             kind="country",
             meta=state.get("meta", {}),
-            label_key="browser_share_download_country",
             config=config,
+            service=service,
+            identity=identity,
         )
 
     if screen != Screen.FIND_OWN_PLACE.value:
         state.pop("own_place_charts_logged", None)
-        state.pop("share_png_own_place", None)
 
     own_place_meta = state.get("meta", {})
     if (
@@ -440,10 +464,11 @@ def run_streamlit(config: dict[str, Any]) -> None:
     ):
         _render_share_download(
             st,
-            kind="own_place",
+            kind="place",
             meta=own_place_meta,
-            label_key="browser_share_download_own_place",
             config=config,
+            service=service,
+            identity=identity,
         )
 
     if screen == Screen.START.value:

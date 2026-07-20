@@ -607,8 +607,8 @@
     {
       "id": 81,
       "name": "browser_share_download_country",
-      "when": "Кнопка скачать PNG результата «Найти страну».",
-      "default": "Скачать результат картинкой",
+      "when": "Кнопка скачать PNG результата «Найти страну» (legacy alias).",
+      "default": "Скачать изображение для соцсетей",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -616,8 +616,71 @@
     {
       "id": 82,
       "name": "browser_share_download_own_place",
-      "when": "Кнопка скачать PNG результата «Понять своё место».",
-      "default": "Скачать результат картинкой",
+      "when": "Кнопка скачать PNG результата «Понять своё место» (legacy alias).",
+      "default": "Скачать изображение для соцсетей",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 87,
+      "name": "browser_share_download",
+      "when": "Кнопка скачивания PNG для соцсетей на экранах результатов.",
+      "default": "Скачать изображение для соцсетей",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 88,
+      "name": "share_image_title",
+      "when": "Заголовок PNG для соцсетей.",
+      "default": "Бот для расчёта индексов ценностей Инглхарта-Вельцеля",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 89,
+      "name": "share_image_result",
+      "when": "Крупный текст с индексами на PNG для соцсетей.",
+      "default": "Мой результат: RV {user_rv}, SV {user_sv}",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 90,
+      "name": "share_image_qr_cta",
+      "when": "Подпись под QR на PNG для соцсетей.",
+      "default": "Пройдите сами",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 91,
+      "name": "share_image_footer_url",
+      "when": "URL внизу PNG для соцсетей.",
+      "default": "https://worldvaluessurveybot.info",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 92,
+      "name": "share_image_footer_cta",
+      "when": "Призыв внизу PNG для соцсетей.",
+      "default": "Пройдите опрос самостоятельно",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 93,
+      "name": "browser_share_build_error",
+      "when": "Ошибка сборки PNG для соцсетей.",
+      "default": "Не удалось собрать картинку: {error}",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -625,8 +688,35 @@
     {
       "id": 83,
       "name": "browser_share_caption",
-      "when": "Подпись под кнопкой скачивания результата.",
-      "default": "Удобно отправить друзьям или сохранить. В картинке — ссылка на бота.",
+      "when": "Подпись под блоком скачивания результата (не используется).",
+      "default": "Картинка с результатом и QR на сайт бота — удобно сохранить или отправить друзьям.",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 84,
+      "name": "browser_share_prepare",
+      "when": "Кнопка запуска сборки PNG (не используется).",
+      "default": "Подготовить картинку",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 85,
+      "name": "browser_share_preparing",
+      "when": "Спиннер при сборке PNG (не используется).",
+      "default": "Собираем картинку…",
+      "console": "",
+      "telegram": "",
+      "browser": ""
+    },
+    {
+      "id": 86,
+      "name": "browser_share_need_logging",
+      "when": "Нет доступа к Postgres — нельзя собрать график стран в PNG.",
+      "default": "Чтобы собрать картинку с графиком, нужно включённое логирование (доступ к данным стран).",
       "console": "",
       "telegram": "",
       "browser": ""

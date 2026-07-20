@@ -118,6 +118,19 @@ def test_returning_user_does_not_log_start_screen_visit() -> None:
     assert logger.events[-1] == "main_menu_visit"
 
 
+def test_load_image_logs_type() -> None:
+    logger = RecordingLogger()
+    service = _service(logger)
+    identity = logger.ensure_user("streamlit", "ext-share")
+
+    service.log_load_image(identity, "streamlit", image_type="country")
+    service.log_load_image(identity, "streamlit", image_type="place")
+
+    assert logger.events[-2:] == ["load_image", "load_image"]
+    assert logger.event_parameters[-2]["type"] == "country"
+    assert logger.event_parameters[-1]["type"] == "place"
+
+
 def test_country_plot_loaded_logs_timings() -> None:
     logger = RecordingLogger()
     service = _service(logger)

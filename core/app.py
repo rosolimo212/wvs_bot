@@ -290,6 +290,21 @@ class AppService:
             },
         )
 
+    def log_load_image(
+        self,
+        identity: UserIdentity,
+        channel: str,
+        *,
+        image_type: str,
+    ) -> None:
+        """Скачивание PNG для соцсетей (type: country | place)."""
+        self.logger.log_event(
+            identity=identity,
+            event_name="load_image",
+            channel=channel,
+            event_parameters={"type": image_type},
+        )
+
     def _menu_meta(self, identity: UserIdentity) -> dict[str, Any]:
         return {
             "main_questionary_complete": self.is_main_questionary_complete(identity),

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from core.analytics.index_interpretation import (
@@ -25,6 +26,10 @@ SV_INDEX_TITLE = "Ценности выживания / самовыражени
 RV_INDEX_TITLE = "Традиционные / секулярно-рациональные ценности"
 SV_AXIS_LABEL = "Индекс выживания / самовыражения"
 RV_AXIS_LABEL = "Индекс традиционных / секулярно-рациональных ценностей"
+
+
+def _plain_share_lines(lines: list[str]) -> list[str]:
+    return [re.sub(r"\*\*([^*]+)\*\*", r"\1", line).strip() for line in lines if line.strip()]
 
 
 def _chart_meta(
@@ -303,5 +308,22 @@ def build_own_place_presentation(
     if charts:
         meta["show_own_place_charts"] = True
         meta["own_place_charts"] = charts
+    share_lines: list[str] = []
+    if own_place.global_pos is not None:
+        share_lines.extend(_plain_share_lines(sv_lines))
+        share_lines.append("")
+        share_lines.extend(_plain_share_lines(rv_lines))
+    elif profile.age is not None and ctx.age_sample_too_small:
+        share_lines.append(
+            message(
+                "find_own_place_age_sample_small",
+                channel,
+                country_name=ctx.country_name,
+                age_window=ctx.age_window or 0,
+                sample_size=ctx.age_sample_size or 0,
+            )
+        )
+    if share_lines:
+        meta["share_body_lines"] = [line for line in share_lines if line.strip()]
 
     return "\n\n".join(parts), meta

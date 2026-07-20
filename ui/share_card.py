@@ -1,66 +1,162 @@
 # coding: utf-8
 """
-PNG-карточка результата «Найти страну» для скачивания в Streamlit.
+PNG для соцсетей: квадрат 1080×1080, прозрачный фон.
 
-Содержимое:
-    RV/SV, matplotlib-карта стран, краткий профиль страны, QR на лендинг.
-
-Важно:
-    Генерация тяжёлая (SQL + seaborn) — вызывать только по кнопке «Подготовить»,
-    кэшировать bytes в session_state, не пересобирать на каждом rerun.
+«Найти страну»: scatter + QR + профиль страны.
+«Понять своё место»: две гистограммы + QR + сравнение с выборкой.
 """
 
 from __future__ import annotations
 
 import io
+import re
 import textwrap
 from typing import Any
 
 import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
+import numpy as np
+from matplotlib.figure import Figure
 
-from core.analytics.index_interpretation import describe_rv_score, describe_sv_score
-from core.country_profiles import load_country_profiles
+from core.country_profiles import format_country_profile
+from core.messages import message
 from ui.country_plot import build_country_plot
 from ui.mini_qr import qr_to_rgb
+from ui.own_place_plot import build_index_histogram_matplotlib
 
 DEFAULT_LANDING_URL = "https://worldvaluessurveybot.info"
-
-_BG = "#102a43"
-_PANEL = "#f0f4f8"
-_INK = "#102a43"
-_MUTED = "#486581"
+CANVAS_INCH = 10.8
+CANVAS_DPI = 100
+_INK = "#1a1a1a"
+_MUTED = "#4a5568"
 _ACCENT = "#0c6b58"
 
 
-def _country_fact_lines(country_code: str) -> list[str]:
-    profile = load_country_profiles().get(country_code.upper())
-    if not profile:
-        return [f"Страна: {country_code.upper()}", "Расширенный профиль пока недоступен."]
-    lines = [str(profile.get("full_name") or country_code.upper())]
-    gov = profile.get("government_type")
-    if gov:
-        lines.append(f"Форма правления: {gov}")
-    gdp = profile.get("gdp_per_capita_usd")
-    if gdp is not None:
-        try:
-            lines.append(f"ВВП на душу: ${int(gdp):,}")
-        except (TypeError, ValueError):
-            lines.append(f"ВВП на душу: {gdp}")
-    pop = profile.get("population")
-    if pop is not None:
-        try:
-            lines.append(f"Население: {int(pop):,}")
-        except (TypeError, ValueError):
-            lines.append(f"Население: {pop}")
-    flight = profile.get("flight_hours_from_london")
-    if flight is not None:
-        lines.append(f"Перелёт из Лондона: ~{flight} ч")
-    return lines
+def plain_text(text: str) -> str:
+    """Убирает markdown (**bold**) для текста на картинке."""
+    return re.sub(r"\*\*([^*]+)\*\*", r"\1", str(text)).strip()
 
 
-def _qr_array(url: str):
-    return qr_to_rgb(url, box_size=6, border=2)
+def _channel(channel: str | None) -> str:
+    return channel or "streamlit"
+
+
+def _figure_to_rgba(fig: Figure, *, dpi: int = CANVAS_DPI) -> np.ndarray:
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    buf.seek(0)
+    return plt.imread(buf)
+
+
+def _save_canvas(fig: Figure) -> bytes:
+    buf = io.BytesIO()
+    fig.savefig(
+        buf,
+        format="png",
+        dpi=CANVAS_DPI,
+        transparent=True,
+        bbox_inches="tight",
+        pad_inches=0.12,
+        facecolor="none",
+    )
+    plt.close(fig)
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def _stack_images(images: list[np.ndarray]) -> np.ndarray:
+    if not images:
+        raise ValueError("Нет изображений для сборки")
+    if len(images) == 1:
+        return images[0]
+    widths = [img.shape[1] for img in images]
+    target_w = max(widths)
+    resized: list[np.ndarray] = []
+    for img in images:
+        if img.shape[1] != target_w:
+            scale = target_w / img.shape[1]
+            new_h = max(1, int(img.shape[0] * scale))
+            y_idx = (np.linspace(0, img.shape[0] - 1, new_h)).astype(int)
+            x_idx = (np.linspace(0, img.shape[1] - 1, target_w)).astype(int)
+            img = img[y_idx][:, x_idx]
+        resized.append(img)
+    return np.vstack(resized)
+
+
+def _wrap_block(text: str, *, width: int) -> str:
+    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
+    return "\n".join(textwrap.fill(p, width=width) for p in paragraphs)
+
+
+def _draw_wrapped(ax: plt.Axes, text: str, *, fontsize: float, color: str = _INK) -> None:
+    ax.axis("off")
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    y = 1.0
+    for paragraph in text.split("\n"):
+        if not paragraph.strip():
+            y -= 0.04
+            continue
+        wrapped = textwrap.fill(paragraph.strip(), width=52)
+        line_count = wrapped.count("\n") + 1
+        ax.text(0, y, wrapped, va="top", ha="left", fontsize=fontsize, color=color, linespacing=1.25)
+        y -= 0.038 * line_count + 0.02
+        if y < 0:
+            break
+
+
+def _share_texts(channel: str | None) -> dict[str, str]:
+    ch = _channel(channel)
+    return {
+        "title": message("share_image_title", ch),
+        "qr_cta": message("share_image_qr_cta", ch),
+        "footer_url": message("share_image_footer_url", ch) or DEFAULT_LANDING_URL,
+        "footer_cta": message("share_image_footer_cta", ch),
+    }
+
+
+def _compose_share_canvas(
+    *,
+    channel: str | None,
+    result_headline: str,
+    left_image: np.ndarray,
+    body_text: str,
+    landing_url: str | None = None,
+) -> bytes:
+    texts = _share_texts(channel)
+    url = landing_url or texts["footer_url"]
+
+    fig = plt.figure(figsize=(CANVAS_INCH, CANVAS_INCH), dpi=CANVAS_DPI)
+    fig.patch.set_alpha(0)
+
+    fig.text(0.5, 0.975, texts["title"], ha="center", va="top", fontsize=13, color=_INK, wrap=True)
+    fig.text(
+        0.5,
+        0.905,
+        plain_text(result_headline),
+        ha="center",
+        va="top",
+        fontsize=22,
+        fontweight="bold",
+        color=_INK,
+    )
+
+    ax_plot = fig.add_axes([0.05, 0.36, 0.56, 0.50])
+    ax_plot.imshow(left_image)
+    ax_plot.axis("off")
+
+    ax_qr = fig.add_axes([0.66, 0.48, 0.29, 0.29])
+    ax_qr.imshow(qr_to_rgb(url, box_size=5, border=2))
+    ax_qr.axis("off")
+    ax_qr.text(0.5, -0.08, texts["qr_cta"], transform=ax_qr.transAxes, ha="center", va="top", fontsize=11, color=_INK)
+
+    ax_body = fig.add_axes([0.05, 0.12, 0.90, 0.20])
+    _draw_wrapped(ax_body, _wrap_block(body_text, width=56), fontsize=9)
+
+    fig.text(0.5, 0.075, url, ha="center", va="top", fontsize=11, color=_ACCENT, fontweight="bold")
+    fig.text(0.5, 0.035, texts["footer_cta"], ha="center", va="top", fontsize=10, color=_MUTED)
+
+    return _save_canvas(fig)
 
 
 def build_country_share_png(
@@ -72,16 +168,12 @@ def build_country_share_png(
     country_sv: float | None = None,
     logging_config: dict[str, Any] | None = None,
     reference_schema: str = "wvs",
-    landing_url: str = DEFAULT_LANDING_URL,
+    landing_url: str | None = None,
     country_df: Any = None,
+    channel: str | None = "streamlit",
 ) -> bytes:
-    """
-    Собирает одну PNG: заголовок, карта стран, факты о стране, QR на лендинг.
-
-    :raises RuntimeError: если нет logging_config или не удалось построить график
-    """
     if logging_config is None:
-        raise RuntimeError("Для карточки со графиком нужен logging_config")
+        raise RuntimeError("logging_config required")
 
     plot_fig, _timings = build_country_plot(
         float(user_sv),
@@ -91,137 +183,79 @@ def build_country_share_png(
         country_df=country_df,
     )
     if plot_fig is None:
-        raise RuntimeError("Не удалось построить график стран для карточки")
+        raise RuntimeError("Не удалось построить график стран")
 
-    plot_buf = io.BytesIO()
-    plot_fig.savefig(plot_buf, format="png", dpi=110, bbox_inches="tight", facecolor="white")
-    plt.close(plot_fig)
-    plot_buf.seek(0)
-    plot_img = plt.imread(plot_buf, format="png")
+    plot_img = _figure_to_rgba(plot_fig)
 
-    code = str(country_code).upper()
-    fact_lines = _country_fact_lines(code)
+    ch = _channel(channel)
+    headline = message(
+        "share_image_result",
+        ch,
+        user_rv=int(round(float(user_rv))),
+        user_sv=int(round(float(user_sv))),
+    )
+    profile = plain_text(format_country_profile(str(country_code).upper(), ch))
+    if not profile:
+        profile = message("country_profile_missing", ch, country_code=str(country_code).upper())
     if country_rv is not None and country_sv is not None:
-        fact_lines.append(f"Индексы страны: RV {float(country_rv):.1f}, SV {float(country_sv):.1f}")
+        nearest = plain_text(
+            message(
+                "find_country_result",
+                ch,
+                country_code=str(country_code).upper(),
+                country_rv=f"{float(country_rv):.1f}",
+                country_sv=f"{float(country_sv):.1f}",
+            )
+        )
+        profile = f"{nearest}\n\n{profile}".strip()
 
-    fig = plt.figure(figsize=(11.5, 14.5), dpi=120)
-    fig.patch.set_facecolor(_BG)
-    gs = GridSpec(
-        4,
-        2,
-        figure=fig,
-        height_ratios=[0.55, 3.2, 1.6, 0.9],
-        width_ratios=[1.15, 0.85],
-        hspace=0.28,
-        wspace=0.18,
-        left=0.06,
-        right=0.94,
-        top=0.95,
-        bottom=0.05,
+    return _compose_share_canvas(
+        channel=ch,
+        result_headline=headline,
+        left_image=plot_img,
+        body_text=profile,
+        landing_url=landing_url,
     )
-
-    ax_title = fig.add_subplot(gs[0, :])
-    ax_title.set_facecolor(_PANEL)
-    ax_title.set_xlim(0, 1)
-    ax_title.set_ylim(0, 1)
-    ax_title.axis("off")
-    ax_title.text(0.03, 0.72, "World Values Survey · бот", fontsize=11, color=_MUTED)
-    ax_title.text(0.03, 0.38, "Мой результат: ближайшая страна", fontsize=18, color=_INK, fontweight="bold")
-    ax_title.text(
-        0.03,
-        0.08,
-        f"RV {float(user_rv):.0f}   ·   SV {float(user_sv):.0f}   ·   {code}",
-        fontsize=14,
-        color=_ACCENT,
-        fontweight="bold",
-    )
-
-    ax_plot = fig.add_subplot(gs[1, :])
-    ax_plot.imshow(plot_img)
-    ax_plot.axis("off")
-    ax_plot.set_facecolor(_PANEL)
-
-    ax_facts = fig.add_subplot(gs[2, 0])
-    ax_facts.set_facecolor(_PANEL)
-    ax_facts.set_xlim(0, 1)
-    ax_facts.set_ylim(0, 1)
-    ax_facts.axis("off")
-    y = 0.92
-    ax_facts.text(0.04, y, "О стране", fontsize=13, color=_ACCENT, fontweight="bold")
-    y -= 0.14
-    for line in fact_lines:
-        wrapped = textwrap.fill(str(line), width=42)
-        ax_facts.text(0.04, y, wrapped, fontsize=10, color=_INK, va="top", linespacing=1.25)
-        y -= 0.045 * (wrapped.count("\n") + 1) + 0.02
-        if y < 0.08:
-            break
-    y = min(y, 0.35)
-    ax_facts.text(0.04, y, textwrap.fill(describe_rv_score(float(user_rv)), 42), fontsize=9, color=_MUTED, va="top")
-    y -= 0.18
-    if y > 0.05:
-        ax_facts.text(0.04, y, textwrap.fill(describe_sv_score(float(user_sv)), 42), fontsize=9, color=_MUTED, va="top")
-
-    ax_qr = fig.add_subplot(gs[2, 1])
-    ax_qr.set_facecolor(_PANEL)
-    ax_qr.imshow(_qr_array(landing_url))
-    ax_qr.axis("off")
-    ax_qr.set_title("Пройти самому", fontsize=11, color=_INK, pad=8)
-
-    ax_footer = fig.add_subplot(gs[3, :])
-    ax_footer.set_facecolor(_PANEL)
-    ax_footer.set_xlim(0, 1)
-    ax_footer.set_ylim(0, 1)
-    ax_footer.axis("off")
-    ax_footer.text(0.03, 0.55, landing_url, fontsize=12, color=_ACCENT, fontweight="bold")
-    ax_footer.text(0.03, 0.2, "Отсканируйте QR или откройте ссылку", fontsize=10, color=_MUTED)
-
-    out = io.BytesIO()
-    fig.savefig(out, format="png", facecolor=fig.get_facecolor(), bbox_inches="tight")
-    plt.close(fig)
-    return out.getvalue()
 
 
 def build_own_place_share_png(
     *,
     user_rv: float,
     user_sv: float,
-    country_name: str = "",
-    landing_url: str = DEFAULT_LANDING_URL,
+    own_place_charts: list[dict[str, Any]],
+    share_body_lines: list[str] | None = None,
+    landing_url: str | None = None,
+    channel: str | None = "streamlit",
 ) -> bytes:
-    """Лёгкая карточка «своё место»: индексы + QR (без тяжёлых гистограмм)."""
-    fig = plt.figure(figsize=(8.5, 10), dpi=120)
-    fig.patch.set_facecolor(_BG)
-    gs = GridSpec(3, 1, figure=fig, height_ratios=[1.2, 2.2, 1.4], hspace=0.25, left=0.08, right=0.92, top=0.94, bottom=0.06)
+    hist_images: list[np.ndarray] = []
+    for chart in own_place_charts[:2]:
+        fig = build_index_histogram_matplotlib(
+            list(chart["peer_values"]),
+            float(chart["user_value"]),
+            title=str(chart["title"]),
+            x_label=str(chart["x_label"]),
+        )
+        if fig is not None:
+            hist_images.append(_figure_to_rgba(fig))
 
-    ax_t = fig.add_subplot(gs[0])
-    ax_t.set_facecolor(_PANEL)
-    ax_t.axis("off")
-    ax_t.set_xlim(0, 1)
-    ax_t.set_ylim(0, 1)
-    ax_t.text(0.05, 0.7, "World Values Survey · бот", fontsize=11, color=_MUTED)
-    ax_t.text(0.05, 0.35, "Моё место в социуме", fontsize=18, color=_INK, fontweight="bold")
-    ax_t.text(0.05, 0.08, f"RV {float(user_rv):.0f}   ·   SV {float(user_sv):.0f}", fontsize=14, color=_ACCENT, fontweight="bold")
+    if not hist_images:
+        raise RuntimeError("Нет гистограмм для карточки")
 
-    ax_b = fig.add_subplot(gs[1])
-    ax_b.set_facecolor(_PANEL)
-    ax_b.axis("off")
-    ax_b.set_xlim(0, 1)
-    ax_b.set_ylim(0, 1)
-    y = 0.9
-    for block in (describe_rv_score(float(user_rv)), describe_sv_score(float(user_sv))):
-        wrapped = textwrap.fill(block, 50)
-        ax_b.text(0.05, y, wrapped, fontsize=12, color=_INK, va="top", linespacing=1.35)
-        y -= 0.05 * (wrapped.count("\n") + 1) + 0.08
-    if country_name.strip():
-        ax_b.text(0.05, max(y, 0.1), f"Выборка: {country_name.strip()}", fontsize=11, color=_MUTED)
+    left_image = _stack_images(hist_images)
 
-    ax_q = fig.add_subplot(gs[2])
-    ax_q.set_facecolor(_PANEL)
-    ax_q.imshow(_qr_array(landing_url))
-    ax_q.axis("off")
-    ax_q.set_title(landing_url, fontsize=11, color=_ACCENT, pad=6)
+    ch = _channel(channel)
+    headline = message(
+        "share_image_result",
+        ch,
+        user_rv=int(round(float(user_rv))),
+        user_sv=int(round(float(user_sv))),
+    )
+    body = "\n".join(plain_text(line) for line in (share_body_lines or []) if plain_text(line))
 
-    out = io.BytesIO()
-    fig.savefig(out, format="png", facecolor=fig.get_facecolor(), bbox_inches="tight")
-    plt.close(fig)
-    return out.getvalue()
+    return _compose_share_canvas(
+        channel=ch,
+        result_headline=headline,
+        left_image=left_image,
+        body_text=body,
+        landing_url=landing_url,
+    )
