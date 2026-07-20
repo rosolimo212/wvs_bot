@@ -316,7 +316,9 @@ def _render_share_download(
         label=message(label_key, "streamlit"),
         data=png,
         file_name=file_name,
-        mime="image/png",
+        # `image/png` иногда приводит к открытию изображения в новой вкладке.
+        # Для UX "остаться на странице и просто скачать" используем generic MIME.
+        mime="application/octet-stream",
         key=f"share_download_{kind}",
     ):
         service.log_load_image(identity, "streamlit", image_type=image_type)
