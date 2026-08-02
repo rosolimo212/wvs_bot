@@ -1,7 +1,7 @@
 # wvs_bot
 
 **Interactive survey bot for the [World Values Survey](https://www.worldvaluessurvey.org/) (WVS) framework.**  
-Participants answer a short questionnaire and get immediate feedback: value indices, nearest country, and their place relative to a large reference sample.
+Participants answer a short questionnaire and get immediate feedback: value indices, nearest country, and how they scored against a large reference sample.
 
 **Architecture:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) · **Agents:** [`AGENTS.md`](AGENTS.md) · **TODO:** [`docs/TODO.md`](docs/TODO.md) · **Backlog:** [`docs/BACKLOG.md`](docs/BACKLOG.md) · **Deploy:** [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
 
