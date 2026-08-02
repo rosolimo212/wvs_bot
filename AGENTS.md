@@ -92,3 +92,4 @@ python3 business_checks.py    # слой 2
 - Открытые задачи: [`docs/TODO.md`](docs/TODO.md)
 - Backlog / task gaps: [`docs/BACKLOG.md`](docs/BACKLOG.md)
 - Деплой: [`deploy/DEPLOY.md`](deploy/DEPLOY.md)
+- **Отложено — PNG для соцсетей:** [`docs/SHARE_IMAGE_DEFERRED.md`](docs/SHARE_IMAGE_DEFERRED.md) (полный контекст: цель, итерации, почему не в main, как чинить UX Streamlit)

@@ -13,6 +13,8 @@
 | 5 | ~~Inline-кнопка в рассылке~~ | отложено |
 | 6 | ~~Актуальность `deploy_prod.sh`~~ | ✅ main VM only; пара — `deploy_telegram.sh` |
 | 7 | SQL-миграции только на Postgres основной VM | правило в AGENTS / DEPLOY |
+| 8 | Streamlit: PNG для соцсетей (share image) | **отложено** — не в main; контекст: [`SHARE_IMAGE_DEFERRED.md`](SHARE_IMAGE_DEFERRED.md) |
+
 ## B) Когда вырастет нагрузка / аудитория
 
 | # | Задача | Зачем |
@@ -35,4 +37,4 @@
 - Рассылки: `wvs.communications`, сегменты, dry-run, stub + `faq_deeplink`.
 - Фикс `find_nearest_country(..., answer_store, ...)`.
 - Telegram: registration после confirm; починка numeric `user_name`.
-- Streamlit: скачивание результата одной PNG-картинкой (`ui/share_card.py`).
+- ~~Streamlit: скачивание PNG для соцсетей~~ — **не принято**; см. [`SHARE_IMAGE_DEFERRED.md`](SHARE_IMAGE_DEFERRED.md), пункт A8.
