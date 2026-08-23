@@ -239,6 +239,14 @@ def estimate_minutes(remaining_questions: int) -> int:
     return int(math.floor(remaining_questions * 0.35))
 
 
+def _question_text_for_display(text: str) -> str:
+    """Абзацы в тексте вопроса: одиночные переносы → пустая строка."""
+    normalized = str(text).replace("\r\n", "\n").strip()
+    if "\n\n" in normalized:
+        return normalized
+    return "\n\n".join(part.strip() for part in normalized.split("\n") if part.strip())
+
+
 def on_main_question_show(
     question: dict[str, Any],
     *,
@@ -255,7 +263,7 @@ def on_main_question_show(
             remaining=remaining,
             time=time_est,
             q_num=int(question["num"]),
-            q_text=question["text"],
+            q_text=_question_text_for_display(question["text"]),
         ),
         buttons=list(question["variants"]) + [return_later_label],
         screen=Screen.MAIN_QUESTIONARY,
@@ -313,7 +321,7 @@ def on_secondary_question_show(
             "secondary_question_body",
             channel,
             q_num=int(question["num"]),
-            q_text=question["text"],
+            q_text=_question_text_for_display(question["text"]),
         )
         prompt = f"{intro}\n\n{body}"
     else:
@@ -323,7 +331,7 @@ def on_secondary_question_show(
             remaining=remaining,
             time=time_est,
             q_num=int(question["num"]),
-            q_text=question["text"],
+            q_text=_question_text_for_display(question["text"]),
         )
     return AppResponse(
         text=prompt,

@@ -335,7 +335,8 @@ def test_option_2_starts_secondary_questionary() -> None:
     assert response.screen == Screen.SECONDARY_QUESTIONARY
     assert "дополнительную анкету" in response.text
     assert service._secondary_questions[0]["text"] in response.text
-    assert response.text.count("Осталось 14 вопросов") == 1
+    # Формулировка из secondary_questionary_intro: «Осталось вопросов: **{remaining}**»
+    assert response.text.count("Осталось вопросов: **14**") == 1
 
 
 def test_secondary_questionary_resume_after_answer() -> None:

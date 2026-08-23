@@ -54,8 +54,8 @@ def test_own_place_presentation_compact_format() -> None:
     sv_pos = text.index("Ценности выживания")
     rv_pos = text.index("Традиционные")
     assert sv_pos < rv_pos
-    assert "составляет 16" in text
-    assert "составляет 18" in text
+    assert "составляет **16.0**" in text
+    assert "составляет **18.0**" in text
     assert message("find_own_place_sv_lead_self_expression", None) + ":" in text
     assert message(
         "find_own_place_compare_wvs_country",

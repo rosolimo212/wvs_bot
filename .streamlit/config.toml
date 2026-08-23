@@ -11,3 +11,6 @@ gatherUsageStats = false
 # На VM: раскомментируйте serverAddress, чтобы в консоли печатался публичный URL
 # (Streamlit сам его не угадывает, если checkip.amazonaws.com недоступен).
 # serverAddress = "45.132.18.2"
+
+[theme]
+baseFontSize = 18

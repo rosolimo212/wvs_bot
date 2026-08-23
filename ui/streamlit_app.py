@@ -51,10 +51,42 @@ from ui.streamlit_cookies import persist_external_id_cookie, resolve_external_us
 
 FAVICON_PATH = ROOT / "hqdefault.jpg"
 
+_STREAMLIT_UI_CSS = """
+<style>
+/* Крупнее базовый текст в браузерной версии */
+html { font-size: 18px; }
+.stApp, .stMarkdown, [data-testid="stMarkdownContainer"] {
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] {
+  text-align: left !important;
+}
+/* Вопросы анкеты и варианты ответа — всегда слева */
+div[data-testid="stRadio"],
+div[data-testid="stRadio"] label,
+div[data-testid="stRadio"] p,
+div[data-testid="stTextInput"] label,
+div[data-testid="stTextInput"] p {
+  text-align: left !important;
+  justify-content: flex-start !important;
+}
+.block-container { text-align: left; }
+h1, h2, h3 { text-align: left !important; }
+</style>
+"""
+
 
 def _page_icon() -> str:
     """Фавикон: hqdefault.jpg в корне проекта или emoji по умолчанию."""
     return str(FAVICON_PATH) if FAVICON_PATH.is_file() else "🌍"
+
+
+def _inject_ui_styles(st: Any) -> None:
+    """Увеличивает шрифт и фиксирует выравнивание текста влево."""
+    st.markdown(_STREAMLIT_UI_CSS, unsafe_allow_html=True)
 
 
 def _streamlit_buttons_nav_first(buttons: list[str], channel: str = "streamlit") -> list[str]:
@@ -331,6 +363,7 @@ def run_streamlit(config: dict[str, Any]) -> None:
         page_title=message("browser_page_title", "streamlit"),
         page_icon=_page_icon(),
     )
+    _inject_ui_styles(st)
 
     service = build_app_service(config)
     state = st.session_state
