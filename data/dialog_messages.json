@@ -275,7 +275,7 @@
       "id": 74,
       "name": "find_own_place_compare_wvs_country",
       "when": "Пункт сравнения с WVS по стране.",
-      "default": "- {percent}% заполнивших оригинальную анкету WVS людей из {country_name}",
+      "default": "- {percent}% заполнивших оригинальную анкету WVS людей (данные по стране: {country_name})",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -284,7 +284,7 @@
       "id": 75,
       "name": "find_own_place_compare_wvs_peers",
       "when": "Пункт сравнения с WVS по возрасту и полу.",
-      "default": "- {percent}% заполнивших оригинальную анкету WVS людей вашего возраста и пола из {country_name}",
+      "default": "- {percent}% заполнивших оригинальную анкету WVS людей вашего возраста и пола (данные по стране: {country_name})",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -293,7 +293,7 @@
       "id": 76,
       "name": "find_own_place_compare_bot_peers",
       "when": "Пункт сравнения с пользователями бота по возрасту и полу.",
-      "default": "- {percent}% пользователей бота вашего возраста и пола из {country_name}",
+      "default": "- {percent}% пользователей бота вашего возраста и пола (данные по стране: {country_name})",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -302,7 +302,7 @@
       "id": 78,
       "name": "find_own_place_compare_bot_age",
       "when": "Сравнение с ботом по возрасту (мало данных по полу).",
-      "default": "- {percent}% пользователей бота вашего возраста из {country_name} (мало данных по полу, n={sample_size})",
+      "default": "- {percent}% пользователей бота вашего возраста (данные по стране: {country_name}); мало данных по полу, всего заполнивших: {sample_size}",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -311,7 +311,7 @@
       "id": 79,
       "name": "find_own_place_compare_bot_country",
       "when": "Сравнение со всеми пользователями бота из страны.",
-      "default": "- {percent}% пользователей бота из {country_name} (мало данных по возрасту и полу, n={sample_size})",
+      "default": "- {percent}% пользователей бота (данные по стране: {country_name}); мало данных по возрасту и полу, всего заполнивших: {sample_size}",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -320,7 +320,7 @@
       "id": 80,
       "name": "find_own_place_compare_bot_all",
       "when": "Сравнение со всеми пользователями бота.",
-      "default": "- {percent}% всех пользователей бота (мало данных по стране, n={sample_size})",
+      "default": "- {percent}% всех пользователей бота; мало данных по стране, всего заполнивших: {sample_size}",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -329,7 +329,7 @@
       "id": 77,
       "name": "find_own_place_peer_heading",
       "when": "Подпись к сравнению со сверстниками того же пола.",
-      "default": "Среди {gender_label} вашего возраста (±{age_window} лет) из {country_name} ({sample_size} участников опроса WVS):",
+      "default": "Среди {gender_label} вашего возраста (±{age_window} лет; данные по стране: {country_name}); число  участников  опроса WVS в этой группе: ({sample_size}",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -338,7 +338,7 @@
       "id": 58,
       "name": "find_own_place_wvs_heading",
       "when": "Заголовок сравнения с выборкой WVS по стране.",
-      "default": "**Среди участников опросов WVS из {country_name}:**",
+      "default": "**Среди участников опросов WVS (данные по стране: {country_name}):**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -347,7 +347,7 @@
       "id": 59,
       "name": "find_own_place_age_heading",
       "when": "Заголовок сравнения со сверстниками в WVS.",
-      "default": "**Среди ваших сверстников (±{age_window} лет) из {country_name}:**",
+      "default": "**Среди ваших сверстников (±{age_window} лет; данные по стране: {country_name}):**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -356,7 +356,7 @@
       "id": 60,
       "name": "find_own_place_gender_age_heading",
       "when": "Заголовок сравнения со сверстниками того же пола в WVS.",
-      "default": "**Среди сверстников вашего возраста (±{age_window} лет) и пола из {country_name}:**",
+      "default": "**Среди участников опросов WVS вашего пола и возраста (±{age_window} лет; данные по стране: {country_name}):**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -365,7 +365,7 @@
       "id": 61,
       "name": "find_own_place_bot_heading",
       "when": "Заголовок сравнения с другими пользователями бота.",
-      "default": "**Среди других пользователей бота из {country_name}:**",
+      "default": "**Среди других пользователей бота (данные по стране: {country_name}):**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -374,7 +374,7 @@
       "id": 62,
       "name": "find_own_place_bot_age_heading",
       "when": "Заголовок сравнения со сверстниками среди пользователей бота.",
-      "default": "**Среди ваших сверстников (±{age_window} лет) среди пользователей бота из {country_name}:**",
+      "default": "**Среди пользователей бота вашего возраста (±{age_window} лет; данные по стране: {country_name}):**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -383,7 +383,7 @@
       "id": 63,
       "name": "find_own_place_bot_gender_age_heading",
       "when": "Заголовок сравнения по полу и возрасту среди пользователей бота.",
-      "default": "**Среди сверстников вашего возраста (±{age_window} лет) и пола среди пользователей бота из {country_name}:**",
+      "default": "**Среди пользователей бота вашего пола и возраста (±{age_window} лет; (данные по стране: {country_name}):**",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -437,7 +437,7 @@
       "id": 50,
       "name": "find_own_place_country_missing",
       "when": "Страна из доп. анкеты отсутствует в выборке WVS.",
-      "default": "Страны «{country_text}» нет в нашей выборке World Values Survey, поэтому сравнение выполнено с участниками опросов из России.",
+      "default": "Страны «{country_text}» нет в нашей выборке World Values Survey, поэтому мы сравниваем вас с участниками опросов из России.",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -446,7 +446,7 @@
       "id": 51,
       "name": "find_own_place_country_default",
       "when": "Страна не указана — используем Россию.",
-      "default": "Вы предпочли в анкете не указывать страну, поэтому сравнение выполнено с участниками опросов из России.",
+      "default": "Вы не указали в анкете страну, поэтому мы сравниваем вас с участниками опросов из России.",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -455,7 +455,7 @@
       "id": 52,
       "name": "find_own_place_age_sample_small",
       "when": "Мало респондентов в возрастной группе даже при ±10 годах.",
-      "default": "Для вашего возраста (±{age_window} лет) в выборке по {country_name} слишком мало участников ({sample_size} человек), чтобы надёжно сравнить вас с ровесниками.",
+      "default": "Для вашего возраста (±{age_window} лет) в выборке по стране «{country_name}» слишком мало участников (всего {sample_size}), поэтому сравнитьсравнение со сверстниками не имеет смысла.",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -500,7 +500,7 @@
       "id": 57,
       "name": "find_own_place_bot_age_sample_small",
       "when": "Мало пользователей бота в возрастной группе.",
-      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) из {country_name} пока слишком мало людей, чтобы сравнить вас с ровесниками.",
+      "default": "Среди пользователей бота вашего возраста (±{age_window} лет) из вашей страны ({country_name}) пока слишком мало людей, чтобы сравнить вас с ними.",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -536,7 +536,7 @@
       "id": 31,
       "name": "country_profile_missing",
       "when": "Нет профиля страны в country_profiles.json.",
-      "default": "Для страны {country_code} пока нет расширенного профиля.",
+      "default": "Для страны {country_code} пока нет подробной информации.",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -653,7 +653,7 @@
       "id": 45,
       "name": "console_plot_skipped",
       "when": "График страны недоступен в консоли.",
-      "default": "График положения стран недоступен в этом клиенте",
+      "default": "График положения стран доступны в веб-версии и Telegram",
       "console": "",
       "telegram": "",
       "browser": ""
@@ -727,7 +727,7 @@
       "id": 4,
       "name": "menu_option_4",
       "when": "Главное меню: место в социуме.",
-      "default": "Понять своё место в социуме",
+      "default": "Узнать, насколько вы похожи на других участников",
       "console": "",
       "telegram": "",
       "browser": ""
